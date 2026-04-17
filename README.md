@@ -70,7 +70,7 @@ uv sync
 ```
 
 > You should see: `All packages installed. Resolved N packages.`
-> The `sair` command is now available inside this environment. Run all commands with `uv run sair ...` or activate the venv first with `source .venv/bin/activate`.
+> All commands below use `uv run sair ...` — this works immediately without activating the venv. If you prefer, activate once with `source .venv/bin/activate` and drop the `uv run` prefix.
 
 ---
 
@@ -113,7 +113,7 @@ The more text, the better the model.
 ### Step 4 — Tokenize
 
 ```bash
-sair prepare
+uv run sair prepare
 ```
 
 This reads everything in `data/raw/`, tokenizes it with the GPT-2 tokenizer, and saves the result to `data/processed/`.
@@ -128,7 +128,7 @@ Pick the option that matches your setup:
 
 **Option A — Local (CPU or GPU)**
 ```bash
-sair train
+uv run sair train
 ```
 Works on any machine. On CPU with the `tiny` preset, expect ~5–10 min per epoch.
 Watch the loss go down — that's your model learning.
@@ -138,9 +138,9 @@ Watch the loss go down — that's your model learning.
 [Modal](https://modal.com) gives you an A100 GPU in the cloud for free (within limits). One-time setup:
 
 ```bash
-pip install modal          # install the Modal client
-modal token new            # opens browser for login — do this once
-sair train --modal         # launches on A100, streams logs to your terminal
+pip install modal              # install the Modal client
+modal token new                # opens browser for login — do this once
+uv run sair train --modal      # launches on A100, streams logs to your terminal
 ```
 
 Checkpoints save to a persistent Modal volume between runs.
@@ -148,29 +148,31 @@ Want a cheaper GPU? Change `gpu="A100"` to `gpu="T4"` in `train/modal_train.py`.
 
 **Option C — Multi-GPU DDP** *(if you have multiple GPUs)*
 ```bash
-sair train --ddp              # uses all available GPUs automatically
-sair train --ddp --nproc 2    # or specify exactly how many
+uv run sair train --ddp              # uses all available GPUs automatically
+uv run sair train --ddp --nproc 2    # or specify exactly how many
 ```
 
 ---
 
 ### Step 6 — Generate text
 
+> **Requires a trained checkpoint.** Run Step 5 first. If you haven't trained yet, skip to [Path B](#path-b--skip-training-load-pretrained-gpt-2) and use `--hf gpt2` instead.
+
 ```bash
-sair generate "Once upon a time"
+uv run sair generate "Once upon a time"
 ```
 
 Try different strategies:
 
 ```bash
 # Greedy — always picks the most likely next token (deterministic)
-sair generate "Once upon a time" --method greedy
+uv run sair generate "Once upon a time" --method greedy
 
 # Nucleus sampling — more creative
-sair generate "Once upon a time" --method nucleus --temperature 0.9
+uv run sair generate "Once upon a time" --method nucleus --temperature 0.9
 
 # Beam search — explores multiple paths and picks the best
-sair generate "Once upon a time" --beams 3
+uv run sair generate "Once upon a time" --beams 3
 ```
 
 | Flag | Effect |
@@ -187,11 +189,13 @@ sair generate "Once upon a time" --beams 3
 ### Step 7 — Open the web UI
 
 ```bash
-sair ui
+uv run sair ui
 ```
 
 Then open **http://localhost:7860** in your browser.
 You'll see a chat interface where you can type prompts, adjust settings, and generate text interactively.
+
+> **No checkpoint yet?** `uv run sair ui` loads from `checkpoints/` — a folder that only exists after you train. If you haven't trained yet, use `uv run sair ui --hf gpt2` instead (see [Path B](#path-b--skip-training-load-pretrained-gpt-2)). The HuggingFace weights are cached locally after the first download, so subsequent runs are instant.
 
 ---
 
@@ -206,10 +210,10 @@ cd miniGPT
 uv sync
 
 # Generate text straight away
-sair generate "The future of AI is" --hf gpt2
+uv run sair generate "The future of AI is" --hf gpt2
 
 # Or open the full web UI
-sair ui --hf gpt2-medium
+uv run sair ui --hf gpt2-medium
 ```
 
 The weights download automatically on first use and are cached locally.

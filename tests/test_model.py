@@ -40,6 +40,11 @@ def test_transformer_block_shape(tiny_config):
 
 def test_all_presets_build():
     from config import MODELS
+    # Only build scratch-tier presets — GPT-2 variants (355m/774m/1558m)
+    # allocate 1–6 GB of RAM just to instantiate architecture on CPU.
+    SCRATCH_PRESETS = {"tiny", "small", "medium", "custom"}
     for name, cfg in MODELS.items():
+        if name not in SCRATCH_PRESETS:
+            continue
         model = GPTModel(cfg)
         assert model is not None, f"Failed to build preset '{name}'"

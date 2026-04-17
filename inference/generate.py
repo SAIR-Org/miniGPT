@@ -32,10 +32,11 @@ def apply_top_p(logits, p):
     probs = F.softmax(logits, dim=-1)
     sorted_probs, sorted_idx = torch.sort(probs, descending=True)
     cumulative = torch.cumsum(sorted_probs, dim=-1)
-    sorted_probs[cumulative > p] = 0.0
-    filtered = torch.zeros_like(logits)
-    filtered.scatter_(dim=-1, index=sorted_idx, src=sorted_probs)
-    return filtered
+    # keep the token that first crosses p; remove everything after
+    to_remove = (cumulative - sorted_probs) > p
+    remove = torch.zeros_like(logits, dtype=torch.bool)
+    remove.scatter_(dim=-1, index=sorted_idx, src=to_remove)
+    return logits.masked_fill(remove, float("-inf"))
 
 
 # ── V0: pure greedy ───────────────────────────────────────────────────────────
