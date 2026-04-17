@@ -82,7 +82,7 @@ Everything tuneable lives here. Most users only ever touch this file.
 
 ```python
 # ── Model ────────────────────────────────────────────────────────────────────
-MODEL_PRESET = "small"        # "tiny" | "small" | "gpt2-124m"
+MODEL_PRESET = "small"        # "tiny" | "small" | "medium" | "custom" | "gpt2-124m" …
 
 # ── Training ─────────────────────────────────────────────────────────────────
 NUM_EPOCHS    = 10
@@ -96,11 +96,43 @@ GEN_TOP_P       = 0.9
 GEN_BEAMS       = 1
 ```
 
-| Preset | Parameters | Good for |
-|--------|-----------|----------|
-| `tiny` | ~500 K | Fast iteration, CPU, debugging |
-| `small` | ~30 M | Laptop GPU, real experiments |
-| `gpt2-124m` | 124 M | Full GPT-2 size, serious training |
+**Scratch presets** — train on your own data:
+
+| Preset | Params | Context | Hardware |
+|--------|--------|---------|----------|
+| `tiny` | ~10 M | 256 tok | CPU — fast iteration / debugging |
+| `small` | ~50 M | 512 tok | Laptop GPU |
+| `medium` | ~100 M | 1024 tok | Single GPU (8 GB+) |
+| `custom` | you decide | you decide | define it in `config.py` |
+
+**Official GPT-2 architectures** — load pretrained weights with `--hf`:
+
+| Preset | Params | HuggingFace alias |
+|--------|--------|-------------------|
+| `gpt2-124m` | 124 M | `gpt2` |
+| `gpt2-355m` | 355 M | `gpt2-medium` |
+| `gpt2-774m` | 774 M | `gpt2-large` |
+| `gpt2-1558m` | 1.5 B | `gpt2-xl` |
+
+### Build your own architecture
+
+Edit the `"custom"` block in `config.py` and set `MODEL_PRESET = "custom"`:
+
+```python
+MODEL_PRESET = "custom"
+
+MODELS["custom"] = {
+    "vocab_size"    : 50257,   # keep this — matches the GPT-2 tokenizer
+    "context_length": 512,     # tokens the model sees at once
+    "emb_dim"       : 384,     # embedding dimension
+    "n_heads"       : 6,       # attention heads (emb_dim must be divisible by n_heads)
+    "n_layers"      : 6,       # transformer blocks
+    "drop_rate"     : 0.1,     # dropout (0.0 = off)
+    "qkv_bias"      : False,   # True matches GPT-2; False is fine for scratch
+}
+```
+
+> Rule of thumb: doubling `emb_dim` and `n_layers` roughly 4× the parameter count.
 
 ---
 
@@ -141,9 +173,17 @@ Already have a model? Load OpenAI's pretrained GPT-2 weights and start generatin
 sair generate "The meaning of life is" --hf gpt2
 sair generate "The meaning of life is" --hf gpt2-medium
 sair ui --hf gpt2-large
+sair ui --hf gpt2-xl
 ```
 
-Supported variants: `gpt2` (124M) · `gpt2-medium` (355M) · `gpt2-large` (774M) · `gpt2-xl` (1.5B)
+Both the friendly name and the exact param-count name work:
+
+| Friendly name | Param-count name | Size |
+|---------------|-----------------|------|
+| `gpt2` | `gpt2-124m` | 124 M |
+| `gpt2-medium` | `gpt2-355m` | 355 M |
+| `gpt2-large` | `gpt2-774m` | 774 M |
+| `gpt2-xl` | `gpt2-1558m` | 1.5 B |
 
 ---
 
