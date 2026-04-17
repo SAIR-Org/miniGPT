@@ -281,6 +281,24 @@ miniGPT/
 
 ---
 
+## Design philosophy — intentionally hackable
+
+miniGPT is deliberately **not** DRY (Don't Repeat Yourself).
+
+`trainer.py`, `ddp_trainer.py`, and `modal_train.py` each contain their own full training loop. `generate.py` has four versions of the same function — `generateV0` through `V3` — each one adding exactly one idea. This is a conscious choice:
+
+- **Each file is self-contained.** You can read, edit, or break any one of them without touching the others.
+- **Each version is a learning step.** Want to understand beam search? Read `generateV3` in isolation. Want to understand gradient accumulation? Read `trainer.py` top to bottom.
+- **No abstraction hides the detail.** A real production system would share a single training loop and call it from three entry points. That's good software engineering — but it's bad for learning. Here you can see the full picture in every file.
+
+If you want to apply proper software engineering principles (DRY, abstraction layers, shared utilities), that is a great exercise — and this codebase is small enough to refactor cleanly.
+
+For a production-grade LLM system built with those principles from scratch, see the founder's project:
+
+> **[MyLLM](https://github.com/silvaxxx1/MyLLM)** — a serious, optimised LLM system built from scratch with clean architecture, designed for students ready to go beyond the playground.
+
+---
+
 ## Acknowledgements
 
 - [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch) — the course this project implements
