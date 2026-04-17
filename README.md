@@ -1,130 +1,149 @@
-# SAIR miniGPT
+<p align="center">
+  <img src="ui/SAiR_logo.jpg" alt="SAIR Logo" width="160"/>
+</p>
 
-> **Capstone project for [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch).**  
-> This is the full production implementation of everything built across the five core notebooks in that module. If you haven't worked through the notebooks first, start there.
+<h1 align="center">SAIR miniGPT</h1>
 
-A full-stack, hackable GPT system — from raw text to a running UI.  
-Every function here (`GPTModel`, `generateV0`→`V3`, `trainerV3`, beam search) maps directly to a cell in the Module 5 notebooks, so the code is readable, modifiable, and yours to break.
+<p align="center">
+  <b>Build a GPT. Train it. Talk to it.</b><br/>
+  A full-stack, hackable GPT playground — from raw text to a live web UI.
+</p>
 
-```
-your data (.txt / .pdf)
-    │
-    ▼  python cli.py prepare
-tokenized .bin files
-    │
-    ▼  python cli.py train  (local GPU)
-    │  python cli.py train --modal  (Modal A100)
-checkpoints/
-    │
-    ▼  python cli.py ui
-web UI (http://localhost:7860)  ←→  generate text
-```
+<p align="center">
+  <a href="https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch">
+    <img src="https://img.shields.io/badge/SAIR%20Jr.-Module%205%20Capstone-blue?style=flat-square" alt="Module 5 Capstone"/>
+  </a>
+  <img src="https://img.shields.io/badge/Python-3.12%2B-brightgreen?style=flat-square" alt="Python 3.12+"/>
+  <img src="https://img.shields.io/badge/PyTorch-2.2%2B-orange?style=flat-square" alt="PyTorch"/>
+  <img src="https://img.shields.io/badge/tests-39%20passing-success?style=flat-square" alt="Tests"/>
+  <img src="https://img.shields.io/badge/package%20manager-uv-purple?style=flat-square" alt="uv"/>
+</p>
+
+---
+
+> This is the **capstone project** for [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch).
+> Every function here (`GPTModel`, `generateV0`→`V3`, `trainerV3`, beam search) maps 1-to-1 to a notebook cell you already wrote.
+> **If you haven't finished the notebooks yet, do that first — then come back here and bring it to life.**
+
+---
+
+## What is this?
+
+You spent Module 5 building a GPT from scratch — attention heads, transformer blocks, training loops, and all.
+**miniGPT packages all of that into a real, runnable system** with:
+
+- A `sair` CLI so you can go from data to trained model in a few commands
+- Support for `.txt` and `.pdf` files as training data
+- Three training modes: local CPU/GPU, Modal A100 cloud, multi-GPU DDP
+- A web UI to chat with your model in the browser
+- The option to skip training entirely and load a pretrained GPT-2 from HuggingFace
 
 ---
 
 ## Quickstart
 
+> **Prerequisites:** Python 3.12+, [uv](https://github.com/astral-sh/uv) (`pip install uv`)
+
 ```bash
-# 1. Clone and set up environment
+# 1. Clone
 git clone https://github.com/SAIR-Org/miniGPT
-cd sair-minigpt
-uv sync                  # installs deps + registers the `sair` command
+cd miniGPT
+uv sync           # creates .venv, installs everything, registers the `sair` command
 
-# 2. Drop your data
-cp your_book.txt  data/raw/
-cp your_paper.pdf data/raw/   # .txt and .pdf both work, mix freely
+# 2. Drop your data in data/raw/
+#    Any .txt or .pdf file works — books, papers, articles, whatever you like
+cp my_book.txt  data/raw/
+cp my_paper.pdf data/raw/
 
-# 3. Prepare
+# 3. Tokenize
 sair prepare
 
 # 4. Train
-sair train                    # local — CPU or single GPU (start here)
-sair train --modal            # Modal A100 — the real power-up (recommended)
-sair train --ddp              # local multi-GPU if you have it
-sair train --ddp --nproc 2    # specify number of GPUs
+sair train                    # local CPU or GPU — start here
+sair train --modal            # Modal A100 cloud (see below)
+sair train --ddp              # multi-GPU on your own machine
 
-# 5. Generate
+# 5. Generate text from the command line
 sair generate "Once upon a time"
-sair generate "Once upon a time" --method nucleus --temperature 0.8 --beams 3
+sair generate "In the beginning" --method nucleus --temperature 0.9 --beams 3
 
-# 6. UI
+# 6. Launch the web UI
 sair ui
+# → open http://localhost:7860
 ```
+
+> **No GPU? No problem.** Set `MODEL_PRESET = "tiny"` in `config.py` and train on CPU in minutes.
 
 ---
 
-## Customise
+## One file to rule them all — `config.py`
 
-Everything lives in **`config.py`** — it's the only file most users touch.
+Everything tuneable lives here. Most users only ever touch this file.
 
 ```python
-# Swap model size
-MODEL_PRESET = "tiny"     # "tiny" | "small" | "gpt2-124m"
+# ── Model ────────────────────────────────────────────────────────────────────
+MODEL_PRESET = "small"        # "tiny" | "small" | "gpt2-124m"
 
-# Tune training
+# ── Training ─────────────────────────────────────────────────────────────────
 NUM_EPOCHS    = 10
 LEARNING_RATE = 3e-4
 BATCH_SIZE    = 16
 
-# Tune generation defaults
+# ── Generation defaults ───────────────────────────────────────────────────────
 GEN_TEMPERATURE = 0.9
-GEN_BEAMS       = 5
+GEN_TOP_K       = 50
+GEN_TOP_P       = 0.9
+GEN_BEAMS       = 1
 ```
 
-To train on your own data: drop any `.txt` or `.pdf` files in `data/raw/` and re-run `prepare`.
-
----
-
-## Structure
-
-```
-sair-minigpt/
-├── config.py              ← start here
-├── cli.py                 ← single entry point
-├── data/
-│   ├── prepare.py         ← loads .txt + .pdf, tokenizes, saves .bin
-│   └── dataset.py         ← GPT2Dataset + DataLoader
-├── model/
-│   └── gpt.py             ← GPTModel (LayerNorm, MHA, FFN, TransformerBlock)
-├── train/
-│   ├── trainer.py         ← trainerV3 (clip + cosine LR + grad accumulation)
-│   └── modal_train.py     ← same trainer wrapped for Modal A100
-├── inference/
-│   └── generate.py        ← generateV0 (greedy) → V3 (beam search)
-└── ui/
-    ├── server.py          ← FastAPI backend
-    └── index.html         ← SAIR-branded dark UI
-```
+| Preset | Parameters | Good for |
+|--------|-----------|----------|
+| `tiny` | ~500 K | Fast iteration, CPU, debugging |
+| `small` | ~30 M | Laptop GPU, real experiments |
+| `gpt2-124m` | 124 M | Full GPT-2 size, serious training |
 
 ---
 
 ## Training options
 
-### Local — single GPU (start here)
+### Option 1 — Local (CPU or GPU)
 ```bash
 sair train
 ```
-Works on CPU too. Use the `"tiny"` preset in `config.py` for fast iteration.
+The default. Works on any machine. Switch to `"tiny"` preset for fast experiments.
 
-### Modal A100 — recommended for real runs
-[Modal](https://modal.com) gives you an A100 in the cloud with one command.
+### Option 2 — Modal A100 (recommended for real training)
+
+[Modal](https://modal.com) gives you a free-tier A100 in the cloud with one command. No setup beyond a browser login.
 
 ```bash
-modal token new          # one-time browser login
-sair train --modal       # launches on A100, streams logs back
+modal token new       # one-time login
+sair train --modal    # runs on A100, streams logs back to your terminal
 ```
 
-Checkpoints are saved to a Modal persistent volume between runs.  
-Change `gpu="A100"` to `gpu="T4"` in `train/modal_train.py` for a cheaper option.
+Checkpoints are saved to a persistent Modal volume — safe between runs.
+Change `gpu="A100"` → `gpu="T4"` in `train/modal_train.py` for a cheaper option.
 
-### Local multi-GPU DDP — if you have the hardware
+### Option 3 — Multi-GPU DDP
 ```bash
-sair train --ddp              # uses all available GPUs
-sair train --ddp --nproc 2    # use exactly 2 GPUs
+sair train --ddp              # use all available GPUs
+sair train --ddp --nproc 2    # use exactly 2
+```
+Launches `torchrun` under the hood. Code is in `train/ddp_trainer.py` — same pattern as Notebook 4, fully readable.
+
+---
+
+## Skip training — load GPT-2 from HuggingFace
+
+Already have a model? Load OpenAI's pretrained GPT-2 weights and start generating immediately:
+
+```bash
+sair generate "The meaning of life is" --hf gpt2
+sair generate "The meaning of life is" --hf gpt2-medium
+sair ui --hf gpt2-large
 ```
 
-Launches `torchrun` under the hood. Requires CUDA and multiple GPUs on the same machine.  
-Same trainerV4 code from Notebook 4 — `train/ddp_trainer.py` is readable and hackable.
+Supported variants: `gpt2` (124M) · `gpt2-medium` (355M) · `gpt2-large` (774M) · `gpt2-xl` (1.5B)
 
 ---
 
@@ -132,16 +151,48 @@ Same trainerV4 code from Notebook 4 — `train/ddp_trainer.py` is readable and h
 
 | Flag | What it does |
 |------|-------------|
-| `--method greedy` | Always pick the most probable token |
-| `--method nucleus` | Sample from the top-p probability mass |
-| `--method top_k` | Sample from the top-k tokens |
-| `--beams N` | Beam search — explore N sequences in parallel |
-| `--temperature T` | `< 1` = focused, `> 1` = creative |
+| `--method greedy` | Always pick the highest-probability token (deterministic) |
+| `--method top_k` | Sample from the top-K tokens |
+| `--method nucleus` | Sample from tokens covering the top-P probability mass |
+| `--beams N` | Beam search — explore N candidate sequences in parallel |
+| `--temperature T` | `< 1.0` = focused · `1.0` = balanced · `> 1.0` = creative |
 
 ---
 
-## Based on
+## Project structure
 
-- [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch) — the notebooks this project implements
+```
+miniGPT/
+├── config.py               ← start here — all hyperparams and paths
+├── cli.py                  ← sair prepare | train | generate | ui
+│
+├── data/
+│   ├── prepare.py          ← reads .txt + .pdf, tokenizes, saves .bin files
+│   └── dataset.py          ← GPT2Dataset + DataLoader helpers
+│
+├── model/
+│   └── gpt.py              ← GPTModel (LayerNorm → MHA → FFN → TransformerBlock)
+│
+├── train/
+│   ├── trainer.py          ← trainerV3: grad accumulation + cosine LR + grad clip
+│   ├── ddp_trainer.py      ← trainerV4: DistributedDataParallel via torchrun
+│   └── modal_train.py      ← trainerV3 wrapped for Modal A100
+│
+├── inference/
+│   ├── generate.py         ← generateV0 (greedy) → V1 (temp) → V2 (top-k/p) → V3 (beam)
+│   └── load_weights.py     ← HuggingFace GPT-2 weight loading
+│
+├── ui/
+│   ├── server.py           ← FastAPI backend
+│   └── index.html          ← SAIR-branded dark web UI
+│
+└── tests/                  ← 39 tests covering the full pipeline
+```
+
+---
+
+## Acknowledgements
+
+- [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch) — the course this project is built on
 - Raschka, *Build a Large Language Model From Scratch*, Manning 2024
-- Vaswani et al., *Attention Is All You Need*, 2017
+- Vaswani et al., *Attention Is All You Need*, NeurIPS 2017
