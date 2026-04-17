@@ -337,4 +337,3 @@ MIT — free for learning and building.
 <p align="center">
   <b>Built with ⚡ and 🧠 by SAIR</b>
 </p>
-```
