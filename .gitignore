@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Data & checkpoints (large files — do not commit)
+data/raw/
+data/processed/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.pkl
+
+# Experiment tracking
+runs/
+mlruns/
+wandb/
+
+# HuggingFace cache
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage

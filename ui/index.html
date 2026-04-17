@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAIR miniGPT</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #161b22;
+      --border:    #30363d;
+      --accent:    #58a6ff;
+      --accent2:   #3fb950;
+      --text:      #e6edf3;
+      --muted:     #8b949e;
+      --danger:    #f85149;
+      --radius:    10px;
+      --font:      'Segoe UI', system-ui, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ───────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    header img {
+      height: 44px;
+      width: 44px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    header .brand h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+    }
+
+    header .brand span {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    #model-badge {
+      margin-left: auto;
+      font-size: 0.75rem;
+      color: var(--accent2);
+      background: rgba(63, 185, 80, 0.1);
+      border: 1px solid rgba(63, 185, 80, 0.3);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    /* ── Main layout ──────────────────────────────────────────── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 0;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 24px;
+      gap: 24px;
+    }
+
+    /* ── Panel shared ─────────────────────────────────────────── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Form controls ────────────────────────────────────────── */
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    label .label-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    label .label-row span {
+      color: var(--accent);
+      font-size: 0.82rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    textarea {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.9rem;
+      padding: 10px 12px;
+      resize: vertical;
+      min-height: 80px;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { outline: none; border-color: var(--accent); }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    /* ── Method selector ──────────────────────────────────────── */
+    .method-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .method-group input[type="radio"] { display: none; }
+
+    .method-group label {
+      flex: 1;
+      text-align: center;
+      padding: 7px 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--muted);
+      transition: all 0.15s;
+      flex-direction: row;
+      justify-content: center;
+    }
+
+    .method-group input[type="radio"]:checked + label {
+      background: rgba(88,166,255,0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ── Accordion ────────────────────────────────────────────── */
+    details summary {
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: var(--muted);
+      user-select: none;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    details summary::before {
+      content: '▶';
+      font-size: 0.65rem;
+      transition: transform 0.2s;
+    }
+
+    details[open] summary::before { transform: rotate(90deg); }
+
+    details .inner { display: flex; flex-direction: column; gap: 14px; padding-top: 12px; }
+
+    /* ── Generate button ──────────────────────────────────────── */
+    #btn-generate {
+      background: var(--accent);
+      color: #0d0f14;
+      border: none;
+      border-radius: var(--radius);
+      padding: 11px 0;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      width: 100%;
+      transition: opacity 0.2s;
+    }
+
+    #btn-generate:hover  { opacity: 0.85; }
+    #btn-generate:active { opacity: 0.7;  }
+    #btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Output panel ─────────────────────────────────────────── */
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    #output {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      min-height: 300px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--text);
+    }
+
+    #output .placeholder { color: var(--muted); font-style: italic; }
+
+    #output .prompt-part  { color: var(--accent); }
+    #output .gen-part     { color: var(--text);   }
+
+    .output-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .output-actions button {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .output-actions button:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Spinner ──────────────────────────────────────────────── */
+    .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Examples ─────────────────────────────────────────────── */
+    .examples { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .example-chip {
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      color: var(--muted);
+      transition: all 0.15s;
+      background: none;
+    }
+
+    .example-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Footer ───────────────────────────────────────────────── */
+    footer {
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+      padding: 14px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      main { grid-template-columns: 1fr; padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────── -->
+<header>
+  <img src="/static/SAiR_logo.jpg" alt="SAIR logo" />
+  <div class="brand">
+    <h1>SAIR miniGPT</h1>
+    <span>Full-stack GPT — from training to inference</span>
+  </div>
+  <div id="model-badge">loading...</div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Left: controls -->
+  <div class="panel">
+    <div class="panel-title">Controls</div>
+
+    <!-- Prompt -->
+    <label>
+      Prompt
+      <textarea id="prompt" rows="3" placeholder="Once upon a time..."></textarea>
+    </label>
+
+    <!-- Example prompts -->
+    <div>
+      <div class="panel-title" style="margin-bottom:8px">Examples</div>
+      <div class="examples">
+        <button class="example-chip" onclick="setPrompt(this)">Once upon a time</button>
+        <button class="example-chip" onclick="setPrompt(this)">The future of AI is</button>
+        <button class="example-chip" onclick="setPrompt(this)">Harry looked at</button>
+        <button class="example-chip" onclick="setPrompt(this)">In a world where</button>
+        <button class="example-chip" onclick="setPrompt(this)">The scientist discovered</button>
+      </div>
+    </div>
+
+    <!-- Sampling method -->
+    <label>
+      Sampling Method
+      <div class="method-group">
+        <input type="radio" name="method" id="m-greedy"  value="greedy">
+        <label for="m-greedy">Greedy</label>
+        <input type="radio" name="method" id="m-topk"    value="top_k">
+        <label for="m-topk">Top-k</label>
+        <input type="radio" name="method" id="m-nucleus" value="nucleus" checked>
+        <label for="m-nucleus">Nucleus</label>
+      </div>
+    </label>
+
+    <!-- Max tokens -->
+    <label>
+      <div class="label-row">Max Tokens <span id="val-tokens">100</span></div>
+      <input type="range" id="max-tokens" min="10" max="300" step="10" value="100"
+             oninput="document.getElementById('val-tokens').textContent=this.value">
+    </label>
+
+    <!-- Advanced accordion -->
+    <details>
+      <summary>Advanced</summary>
+      <div class="inner">
+        <label>
+          <div class="label-row">Temperature <span id="val-temp">0.8</span></div>
+          <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="0.8"
+                 oninput="document.getElementById('val-temp').textContent=parseFloat(this.value).toFixed(1)">
+        </label>
+        <label>
+          <div class="label-row">Top-k <span id="val-topk">50</span></div>
+          <input type="range" id="top-k" min="1" max="100" step="1" value="50"
+                 oninput="document.getElementById('val-topk').textContent=this.value">
+        </label>
+        <label>
+          <div class="label-row">Top-p <span id="val-topp">0.9</span></div>
+          <input type="range" id="top-p" min="0.1" max="1.0" step="0.05" value="0.9"
+                 oninput="document.getElementById('val-topp').textContent=parseFloat(this.value).toFixed(2)">
+        </label>
+        <label>
+          <div class="label-row">Beams <span id="val-beams">1</span></div>
+          <input type="range" id="beams" min="1" max="10" step="1" value="1"
+                 oninput="document.getElementById('val-beams').textContent=this.value">
+        </label>
+      </div>
+    </details>
+
+    <button id="btn-generate" onclick="generate()">Generate</button>
+  </div>
+
+  <!-- Right: output -->
+  <div class="panel output-panel">
+    <div class="panel-title">Output</div>
+    <div id="output">
+      <span class="placeholder">Generated text will appear here...</span>
+    </div>
+    <div class="spinner" id="spinner"></div>
+    <div class="output-actions">
+      <button onclick="copyOutput()">Copy</button>
+      <button onclick="clearOutput()">Clear</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  SAIR — Sudanese AI Research &nbsp;·&nbsp; miniGPT Playground
+</footer>
+
+<script>
+  // ── Fetch model info on load ──────────────────────────────────────
+  fetch("/info").then(r => r.json()).then(d => {
+    const params = d.params ? (d.params / 1e6).toFixed(0) + "M params" : "unknown";
+    document.getElementById("model-badge").textContent =
+      `${d.device.toUpperCase()} · ${params}`;
+  }).catch(() => {
+    document.getElementById("model-badge").textContent = "model ready";
+  });
+
+  // ── Example chips ─────────────────────────────────────────────────
+  function setPrompt(el) {
+    document.getElementById("prompt").value = el.textContent;
+  }
+
+  // ── Generate ──────────────────────────────────────────────────────
+  async function generate() {
+    const prompt = document.getElementById("prompt").value.trim();
+    if (!prompt) return;
+
+    const btn     = document.getElementById("btn-generate");
+    const spinner = document.getElementById("spinner");
+    const output  = document.getElementById("output");
+
+    btn.disabled     = true;
+    spinner.style.display = "block";
+    output.innerHTML = "";
+
+    const method = document.querySelector('input[name="method"]:checked').value;
+
+    const body = {
+      prompt,
+      max_tokens  : parseInt(document.getElementById("max-tokens").value),
+      temperature : parseFloat(document.getElementById("temperature").value),
+      top_k       : parseInt(document.getElementById("top-k").value),
+      top_p       : parseFloat(document.getElementById("top-p").value),
+      beams       : parseInt(document.getElementById("beams").value),
+      method,
+    };
+
+    try {
+      const res  = await fetch("/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        output.innerHTML = `<span style="color:var(--danger)">${data.error}</span>`;
+      } else {
+        // highlight the prompt part in accent colour
+        const promptEsc = data.text.substring(0, prompt.length)
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        const genEsc = data.text.substring(prompt.length)
+          .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+        output.innerHTML =
+          `<span class="prompt-part">${promptEsc}</span><span class="gen-part">${genEsc}</span>`;
+      }
+    } catch (e) {
+      output.innerHTML = `<span style="color:var(--danger)">Request failed: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = "none";
+    }
+  }
+
+  // ── Keyboard shortcut: Ctrl+Enter ─────────────────────────────────
+  document.getElementById("prompt").addEventListener("keydown", e => {
+    if (e.ctrlKey && e.key === "Enter") generate();
+  });
+
+  // ── Output actions ────────────────────────────────────────────────
+  function copyOutput() {
+    navigator.clipboard.writeText(document.getElementById("output").textContent);
+  }
+
+  function clearOutput() {
+    document.getElementById("output").innerHTML =
+      '<span class="placeholder">Generated text will appear here...</span>';
+  }
+</script>
+</body>
+</html>
