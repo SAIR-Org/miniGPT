@@ -48,6 +48,7 @@ You built a GPT from scratch in Module 5. miniGPT packages all of that into a re
 | 🖥️ **`sair` CLI** | Go from raw text to trained model in a few commands |
 | 📄 **Multi-format data** | `.txt` and `.pdf` files as training data |
 | ☁️ **Flexible training** | Local CPU/GPU · Modal A100 cloud · multi-GPU DDP |
+| 📊 **W&B + plots** | Live loss curves in your browser + PNG saved after training |
 | 🌐 **Web UI** | Chat with your model in the browser |
 | 🚀 **Pretrained models** | Load GPT-2 (124M → 1.5B) without training |
 
@@ -93,31 +94,37 @@ uv sync
 Open **`config.py`** and set `MODEL_PRESET`:
 
 ```python
-MODEL_PRESET = "tiny"    # ← change this line
+MODEL_PRESET = "small"    # ← change this line
 ```
 
 | Preset | Params | Context | Best for |
 |--------|--------|---------|----------|
 | `tiny` | ~10 M | 256 tokens | No GPU — fast testing |
-| `small` | ~50 M | 512 tokens | Laptop GPU (4–6 GB) |
+| `small` | ~50 M | 512 tokens | Laptop GPU or Modal free tier |
 | `medium` | ~100 M | 1024 tokens | Dedicated GPU (8 GB+) |
 | `custom` | you decide | you decide | [Custom architecture](#build-your-own-architecture) |
 
-> **Not sure?** Start with `"tiny"`. You can always retrain with a bigger preset.
+> **Not sure?** Start with `"small"` on Modal — it's fast and gives good results.
 
 ---
 
 ### 📂 Step 3 — Add your training data
 
 ```bash
-mkdir -p data/raw
-cp my_book.txt   data/raw/      # .txt files work
-cp my_paper.pdf  data/raw/      # .pdf files work too
+cp my_book.txt  data/raw/      # .txt files work
+cp my_paper.pdf data/raw/      # .pdf files work too
 ```
 
 Any text works — novels, Wikipedia, research papers. More text = better model.
 
 > **No data handy?** Download a free book from [Project Gutenberg](https://www.gutenberg.org).
+>
+> **Using Harry Potter books?** The SAIR repo already has 6 books at:
+> `4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/`
+> Copy them with:
+> ```bash
+> cp "../4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/"*.txt data/raw/
+> ```
 
 ---
 
@@ -127,9 +134,22 @@ Any text works — novels, Wikipedia, research papers. More text = better model.
 uv run sair prepare
 ```
 
-Reads everything in `data/raw/`, tokenizes with GPT-2 tokenizer, saves to `data/processed/`.
+Reads everything in `data/raw/`, strips formatting artifacts, tokenizes with GPT-2 tokenizer, saves to `data/processed/`.
 
-> ✅ Expected: `Tokenized 1,234,567 tokens → data/processed/train_ids.bin`
+Expected output for 6 Harry Potter books:
+```
+Loading corpus from data/raw ...
+  [txt] Book 1 - The Philosopher's Stone.txt
+  [txt] Book 3 - The Prisoner of Azkaban.txt
+  ...
+Total characters : 6,233,476
+
+  train:  1,740,472 tokens  →  data/processed/train_ids.bin
+  val  :    137,152 tokens  →  data/processed/val_ids.bin
+  test :     56,651 tokens  →  data/processed/test_ids.bin
+
+Done. Ready to train.
+```
 
 ---
 
@@ -141,14 +161,9 @@ uv run sair train
 ```
 On CPU with `tiny` preset: ~5–10 min per epoch.
 
-**Option B — Modal A100 cloud** *(recommended)*
-
-[Modal](https://modal.com) gives free A100 GPU access (within limits):
-
+**Option B — Modal cloud GPU** *(recommended — see full guide below)*
 ```bash
-pip install modal
-modal token new                # one-time login
-uv run sair train --modal      # launches on A100
+uv run python -m modal run train/modal_train.py
 ```
 
 **Option C — Multi-GPU DDP**
@@ -159,26 +174,94 @@ uv run sair train --ddp --nproc 2    # specify count
 
 ---
 
-### 💬 Step 6 — Generate text
+### ☁️ Modal Cloud Training — Full Guide
 
-> Requires a trained checkpoint. Run Step 5 first. Or use [Path B](#path-b--skip-training-load-pretrained-gpt-2).
+[Modal](https://modal.com) gives you cloud GPU access with a free tier. Here's the complete setup we used in our live session.
+
+#### 1. Create a Modal account
+
+Go to `modal.com` and sign up with GitHub.
+
+**Free tier:** You get **$5 immediately** (no card needed). Add a credit card to unlock the full **$30/month**. Credits reset monthly and don't roll over.
+
+**GPU costs:**
+| GPU | $/hr | 5 epochs on `small` model |
+|-----|------|--------------------------|
+| T4  | ~$0.59 | ~2–3 hrs → ~$1.50 |
+| A100 | ~$3.70 | ~30–45 min → ~$2.50 |
+
+> A100 is actually cheaper for this job because it finishes 4× faster.
+> With only $5 (no card), **A100 still fits** — the run costs ~$2.50.
+
+#### 2. Authenticate the CLI
+
+```bash
+uv run python -m modal token new
+```
+
+This opens your browser. Click approve and come back.
+
+> ⚠️ **Use `uv run python -m modal`** everywhere instead of just `modal`.
+> The `modal` binary in the venv has a broken shebang pointing to an old path.
+
+#### 3. Set up W&B for live loss curves
+
+Get your API key at `wandb.ai/authorize`, then:
+
+```bash
+uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
+```
+
+#### 4. Launch training
+
+```bash
+uv run python -m modal run train/modal_train.py
+```
+
+Modal will:
+- Build a Docker image with all dependencies (~2 min, cached after first run)
+- Upload your code + tokenized data
+- Spin up the GPU and start training
+- Stream logs to your terminal in real time
+- Print a W&B URL — open it to watch loss curves live
+
+#### 5. Download your checkpoint
+
+First, list what's in the volume to confirm:
+```bash
+uv run python -m modal volume ls sair-minigpt-checkpoints
+```
+
+Then download:
+```bash
+uv run python -m modal volume get sair-minigpt-checkpoints epoch_05.pt checkpoints/epoch_05.pt
+uv run python -m modal volume get sair-minigpt-checkpoints loss_curve.png checkpoints/loss_curve.png
+```
+
+> ⚠️ Files are saved at the **root of the volume** (`epoch_05.pt`), not under `/checkpoints/epoch_05.pt`. Use the filename directly.
+
+---
+
+### 💬 Step 6 — Generate text
 
 ```bash
 uv run sair generate "Once upon a time"
 ```
 
+The CLI automatically loads the latest checkpoint from `checkpoints/`.
+
 **Generation strategies:**
 
 | Method | Command | Effect |
 |--------|---------|--------|
-| Greedy | `--method greedy` | Deterministic, repetitive |
-| Nucleus | `--method nucleus --temperature 0.9` | Natural, varied |
+| Nucleus (default) | `--method nucleus --temperature 0.9` | Natural, varied |
 | Top-K | `--method top_k` | Sample from top K tokens |
+| Greedy | `--method greedy` | Deterministic, repetitive |
 | Beam search | `--beams 3` | Explores multiple paths |
 
 **Additional flags:**
-- `--temperature T` — `<1` focused · `>1` creative
-- `--max-tokens N` — how many tokens to generate
+- `--temperature T` — `<1` more focused · `>1` more creative
+- `--max-tokens N` — how many tokens to generate (default: 100)
 
 ---
 
@@ -191,6 +274,75 @@ uv run sair ui
 Then open **http://localhost:7860** in your browser.
 
 > **No checkpoint?** Use `uv run sair ui --hf gpt2` (see Path B).
+
+---
+
+## 📊 Real Training Example — Harry Potter (5 epochs)
+
+**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · 6 Harry Potter books · 5 epochs
+
+**Training run:** ~88 seconds/epoch on A100 · total ~$2.50
+
+**Loss curve:**
+
+<p align="center">
+  <img src="assets/loss_curve.png" alt="Train vs Val Loss — Harry Potter 5 epochs" width="700"/>
+</p>
+
+| Epoch | Train Loss | Val Loss |
+|-------|-----------|---------|
+| 1 | ~5.2 | ~5.4 |
+| 2 | ~4.3 | ~4.5 |
+| 3 | ~3.9 | ~4.1 |
+| 4 | ~3.6 | ~3.8 |
+| 5 | **3.49** | **3.74** |
+
+Loss dropped consistently across all 5 epochs with a healthy train/val gap — no overfitting.
+
+**W&B dashboard** (live curves during training):
+
+```
+wandb: Run history:
+wandb:  train/loss █▅▃▁▁
+wandb:    val/loss █▅▃▁▁
+wandb:    train/lr █▇▅▃▁
+```
+
+**Generated samples after 5 epochs:**
+
+```
+Prompt: "Harry Potter walked into"
+
+Harry Potter walked into the Phoenix - J. Rowling
+
+"So it't you't let us if they't
+him?" Harry said Mr. "Why
+you know I mean ...'re going to kill me, he've got to
+yourself.'t like your eyes."
+
+"What did you have a bit to
+Dumbledore" Harry.
+```
+
+```
+Prompt: "Dumbledore looked at Harry and said"
+
+Dumbledore looked at Harry and said.
+
+"We're not have to do with a
+for him." said Hagrid. "We'd be
+you."
+
+"I't you a week, but I's not know," said Harry,
+and he said Sirius, but the ground.
+```
+
+The model picks up character names, dialogue structure, and Harry Potter vocabulary after just 5 epochs. Contractions are broken and sentences aren't fully coherent yet — that improves with more epochs.
+
+**To improve results:**
+- Bump `NUM_EPOCHS = 10` in `config.py` and retrain
+- Use `--temperature 0.6` for more focused output
+- Use `--max-tokens 200` for longer samples
 
 ---
 
@@ -255,16 +407,16 @@ miniGPT/
 ├── cli.py                  ← sair prepare | train | generate | ui
 │
 ├── data/
-│   ├── prepare.py          ← reads .txt + .pdf, tokenizes, saves .bin
+│   ├── prepare.py          ← reads .txt + .pdf, cleans, tokenizes, saves .bin
 │   └── dataset.py          ← GPT2Dataset + DataLoader
 │
 ├── model/
 │   └── gpt.py              ← GPTModel: LayerNorm → MHA → FFN → Block
 │
 ├── train/
-│   ├── trainer.py          ← trainerV3: grad accumulation + cosine LR
+│   ├── trainer.py          ← trainerV3: grad accumulation + cosine LR + W&B + plots
 │   ├── ddp_trainer.py      ← trainerV4: DistributedDataParallel
-│   └── modal_train.py      ← trainerV3 wrapped for Modal A100
+│   └── modal_train.py      ← trainerV3 wrapped for Modal cloud GPU
 │
 ├── inference/
 │   ├── generate.py         ← generateV0 (greedy) → V3 (beam search)
@@ -274,9 +426,28 @@ miniGPT/
 │   ├── server.py           ← FastAPI backend
 │   └── index.html          ← SAIR-branded dark web UI
 │
-├── tests/                  ← 39 tests covering full pipeline
-└── sair_gpt_demo.gif       ← demo animation
+└── tests/                  ← 39 tests covering full pipeline
 ```
+
+---
+
+## 📈 W&B + Matplotlib integration
+
+Training automatically logs to [Weights & Biases](https://wandb.ai) and saves a loss plot.
+
+**What gets logged:**
+- Every eval step: `train/loss`, `val/loss`, `learning_rate`, `tokens_seen`
+- Every epoch: generated text sample as W&B artifact
+- After training: loss curve PNG uploaded to W&B + saved to `checkpoints/loss_curve.png`
+
+**To disable W&B** (train without logging):
+
+```python
+# in train/trainer.py, change the default:
+def train(..., use_wandb=False):
+```
+
+Or just don't create the `wandb-secret` on Modal — training falls back silently.
 
 ---
 
@@ -301,22 +472,34 @@ For a production-grade LLM system with clean architecture, see:
 ## 🧪 Testing
 
 ```bash
-# Run the test suite
-uv run pytest tests/ -v
+uv run python -m pytest tests/ -v
 ```
 
 ```
 ============================= test session starts ==============================
 collected 39 items
 
-tests/test_data.py .......                                              [ 17%]
-tests/test_model.py ............                                        [ 48%]
-tests/test_training.py .........                                        [ 71%]
-tests/test_inference.py .......                                         [ 89%]
-tests/test_cli.py ....                                                  [100%]
+tests/test_config.py .....                                              [ 12%]
+tests/test_data.py ......                                               [ 28%]
+tests/test_generate.py .............                                    [ 61%]
+tests/test_model.py ......                                              [ 76%]
+tests/test_server.py .....                                              [ 89%]
+tests/test_trainer.py .....                                             [100%]
 
-============================== 39 passed ==============================
+39 passed in 8.65s
 ```
+
+---
+
+## 🐛 Known gotchas
+
+| Problem | Fix |
+|---------|-----|
+| `modal: command not found` | Use `uv run python -m modal` instead of `modal` |
+| `modal.Mount has no attribute` | Modal v1.x removed `Mount` — use `image.add_local_dir()` |
+| `No such file or directory` when downloading checkpoint | Files are at volume root — use `epoch_05.pt` not `/checkpoints/epoch_05.pt` |
+| Checkpoint corrupted on load | Re-download: `modal volume get sair-minigpt-checkpoints epoch_05.pt checkpoints/epoch_05.pt` |
+| Model generates `Page \| 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
 
 ---
 

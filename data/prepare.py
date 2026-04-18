@@ -28,6 +28,15 @@ def extract_pdf(path: Path) -> str:
     return "\n".join(page.get_text() for page in doc)
 
 
+def clean_text(text: str) -> str:
+    import re
+    # remove "Page | 123 Book Title - Author" header lines
+    text = re.sub(r"Page \| \d+.*\n?", "", text)
+    # collapse runs of blank lines to a single blank line
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def load_corpus(raw_dir: Path = DATA_RAW) -> str:
     paths = sorted(raw_dir.iterdir())
     supported = [p for p in paths if p.suffix in (".txt", ".pdf")]
@@ -42,10 +51,10 @@ def load_corpus(raw_dir: Path = DATA_RAW) -> str:
     for path in supported:
         if path.suffix == ".txt":
             print(f"  [txt] {path.name}")
-            texts.append(path.read_text(encoding="utf-8", errors="ignore"))
+            texts.append(clean_text(path.read_text(encoding="utf-8", errors="ignore")))
         elif path.suffix == ".pdf":
             print(f"  [pdf] {path.name}")
-            texts.append(extract_pdf(path))
+            texts.append(clean_text(extract_pdf(path)))
 
     return "\n\n".join(texts)
 

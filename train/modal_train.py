@@ -1,15 +1,20 @@
 """
-train/modal_train.py — run trainerV3 on Modal cloud GPU.
+train/modal_train.py — run trainer on Modal cloud GPU.
 
 Usage:
-    modal run train/modal_train.py
+    uv run python -m modal run train/modal_train.py
 
 Requires:
-    modal token new    # one-time auth
-    uv add modal
+    uv run python -m modal token new    # one-time auth
 """
 import modal
 from pathlib import Path
+
+ROOT      = Path(__file__).parent.parent
+DATA_DIR  = ROOT / "data" / "processed"
+
+REMOTE_DATA = "/data"
+REMOTE_CKPT = "/checkpoints"
 
 # ── Modal app + persistent volume for checkpoints ─────────────────────────────
 app    = modal.App("sair-minigpt")
@@ -17,22 +22,21 @@ volume = modal.Volume.from_name("sair-minigpt-checkpoints", create_if_missing=Tr
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
-    .pip_install("torch", "tiktoken", "numpy", "transformers", "pymupdf")
+    .pip_install("torch", "tiktoken", "numpy", "transformers", "pymupdf", "wandb", "matplotlib")
+    .add_local_dir(str(ROOT), remote_path="/app", ignore=[
+        ".venv", "__pycache__", "*.pyc", "*.pyo",
+        "checkpoints", "data/raw", "runs", "mlruns",
+        ".git", "*.gif", "*.jpg", "*.png",
+    ])
+    .add_local_dir(str(DATA_DIR), remote_path=REMOTE_DATA)   # tokenized .bin files
 )
 
-REMOTE_DATA = "/data"
-REMOTE_CKPT = "/checkpoints"
 
-
-# ── Upload your processed data to Modal ──────────────────────────────────────
+# ── Local entrypoint ──────────────────────────────────────────────────────────
 
 @app.local_entrypoint()
 def main():
-    """Uploads data, kicks off training, downloads latest checkpoint."""
-    import subprocess, shutil, sys
-    from config import DATA_DIR, CKPT_DIR
-
-    print("Uploading data to Modal volume...")
+    print("Launching training on Modal A100...")
     train_fn.remote()
 
 
@@ -40,18 +44,10 @@ def main():
 
 @app.function(
     image   = image,
-    gpu     = "A100",                        # swap to "T4" for cheaper runs
-    volumes = {
-        REMOTE_DATA : volume,
-        REMOTE_CKPT : volume,
-    },
-    timeout = 3 * 3600,                      # 3 hours max
-    mounts  = [
-        modal.Mount.from_local_dir(
-            Path(__file__).parent.parent,    # entire sair-minigpt/ folder
-            remote_path="/app",
-        )
-    ],
+    gpu     = "A100",
+    volumes = {REMOTE_CKPT: volume},
+    secrets = [modal.Secret.from_name("wandb-secret")],
+    timeout = 3 * 3600,
 )
 def train_fn():
     import sys
@@ -59,9 +55,9 @@ def train_fn():
 
     import torch
     from config import MODEL_CONFIG
-    from data.dataset   import get_loaders
-    from model.gpt      import GPTModel
-    from train.trainer  import train
+    from data.dataset  import get_loaders
+    from model.gpt     import GPTModel
+    from train.trainer import train
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Running on: {device}")
