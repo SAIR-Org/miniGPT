@@ -119,7 +119,7 @@ Any text works — novels, Wikipedia, research papers. More text = better model.
 
 > **No data handy?** Download a free book from [Project Gutenberg](https://www.gutenberg.org).
 >
-> **Using Harry Potter books?** The SAIR repo already has 6 books at:
+> **Using Harry Potter books?** The SAIR repo has 6 of the 7 books (Book 2 — Chamber of Secrets is missing) at:
 > `4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/`
 > Copy them with:
 > ```bash
@@ -163,7 +163,9 @@ On CPU with `tiny` preset: ~5–10 min per epoch.
 
 **Option B — Modal cloud GPU** *(recommended — see full guide below)*
 ```bash
-uv run python -m modal run train/modal_train.py
+uv run sair train --modal                        # via CLI
+# or equivalently:
+uv run python -m modal run train/modal_train.py  # direct
 ```
 
 **Option C — Multi-GPU DDP**

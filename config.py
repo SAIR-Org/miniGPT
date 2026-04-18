@@ -136,7 +136,7 @@ EVAL_ITER      = 10
 GRAD_CLIP      = 1.0
 TOTAL_BATCH    = 32768   # effective batch tokens (for gradient accumulation)
 MICRO_BATCH    = BATCH_SIZE
-START_CONTEXT  = "Once upon a time"
+START_CONTEXT  = "Harry Potter"
 
 # ── Inference defaults ─────────────────────────────────────────────────────────
 GEN_MAX_TOKENS  = 100
