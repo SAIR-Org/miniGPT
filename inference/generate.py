@@ -138,6 +138,26 @@ def generate(model, prompt, max_new_tokens, context_size, tokenizer, device,
 
 # ── Load latest checkpoint ────────────────────────────────────────────────────
 
+def _config_from_state_dict(state_dict, fallback_config):
+    """Infer model config from checkpoint weights, falling back to saved config key."""
+    sd = state_dict
+    emb_dim        = sd["tok_emb.weight"].shape[1]
+    context_length = sd["pos_emb.weight"].shape[0]
+    vocab_size     = sd["tok_emb.weight"].shape[0]
+    n_layers       = sum(1 for k in sd if k.startswith("trf_blocks.") and k.endswith(".norm1.scale"))
+    qkv_bias       = (f"trf_blocks.0.att.W_query.bias" in sd)
+
+    from config import MODELS
+    for cfg in MODELS.values():
+        if (cfg["emb_dim"] == emb_dim and cfg["n_layers"] == n_layers
+                and cfg["context_length"] == context_length):
+            return cfg
+
+    return {**fallback_config,
+            "emb_dim": emb_dim, "context_length": context_length,
+            "vocab_size": vocab_size, "n_layers": n_layers, "qkv_bias": qkv_bias}
+
+
 def load_model(config, ckpt_dir, device):
     from model.gpt import GPTModel
     from config import CKPT_DIR
@@ -151,8 +171,13 @@ def load_model(config, ckpt_dir, device):
 
     latest = checkpoints[-1]
     print(f"Loading {latest}")
-    model = GPTModel(config).to(device)
-    ckpt  = torch.load(latest, map_location=device)
+    ckpt = torch.load(latest, map_location=device, weights_only=False)
+
+    cfg = ckpt.get("config") or _config_from_state_dict(ckpt["model"], config)
+    if cfg != config:
+        print(f"  checkpoint arch: emb_dim={cfg['emb_dim']}, n_layers={cfg['n_layers']}, context={cfg['context_length']}")
+
+    model = GPTModel(cfg).to(device)
     model.load_state_dict(ckpt["model"])
     model.eval()
     return model

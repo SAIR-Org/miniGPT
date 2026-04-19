@@ -113,9 +113,38 @@ def download():
     for filename in to_download:
         dest = local_ckpt_dir / filename
         print(f"Downloading {filename} → {dest}")
-        data = b"".join(volume.read_file(filename))
-        dest.write_bytes(data)
+        with open(dest, "wb") as f:
+            for chunk in volume.read_file(filename):
+                f.write(chunk)
 
     print(f"\nDone. Latest checkpoint: checkpoints/{ckpt_files[-1]}")
     print("Run inference with:  uv run python cli.py generate 'Harry Potter'")
     print("Or launch the UI:    uv run python cli.py ui")
+
+
+@app.local_entrypoint()
+def list_checkpoints():
+    """List all files in the Modal volume with sizes."""
+    files = list(volume.listdir("/"))
+    if not files:
+        print("Modal volume is empty.")
+        return
+    print(f"{'File':<30} {'Size':>12}")
+    print("-" * 44)
+    for f in sorted(files, key=lambda x: x.path):
+        size_mb = getattr(f, "size", 0) / (1024 * 1024)
+        print(f"{f.path:<30} {size_mb:>10.1f} MB")
+
+
+@app.local_entrypoint()
+def download_specific():
+    filename = "epoch_26.pt"
+    local_ckpt_dir = ROOT / "checkpoints"
+    local_ckpt_dir.mkdir(exist_ok=True)
+
+    dest = local_ckpt_dir / filename
+    print(f"Downloading {filename} from Modal volume → {dest}")
+    with open(dest, "wb") as f:
+        for chunk in volume.read_file(filename):
+            f.write(chunk)
+    print(f"Done. Saved to checkpoints/{filename}")

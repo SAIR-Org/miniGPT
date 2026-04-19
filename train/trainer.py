@@ -219,7 +219,8 @@ def train(
 
         ckpt = save_dir / f"epoch_{epoch+1:02d}.pt"
         torch.save({"epoch": epoch + 1, "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict()}, ckpt)
+                    "optimizer": optimizer.state_dict(),
+                    "config": model_config}, ckpt)
         print(f"Checkpoint → {ckpt}  ({time.time()-t0:.1f}s)\n")
 
     # ── post-training plot ────────────────────────────────────────────────────

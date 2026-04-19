@@ -238,7 +238,7 @@ uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
 
 #### 4. Launch training
 
-> ⚠️ **Always specify the entrypoint explicitly.** The file has two entrypoints (`main` and `download`), so Modal requires `::name` syntax.
+> ⚠️ **Always specify the entrypoint explicitly.** The file has multiple entrypoints, so Modal requires `::name` syntax.
 
 ```bash
 uv run python -m modal run train/modal_train.py::main
@@ -254,10 +254,23 @@ Modal will:
 #### 5. Download your checkpoint
 
 ```bash
+# List all checkpoints in the Modal volume (with sizes)
+uv run python -m modal run train/modal_train.py::list_checkpoints
+
+# Download the latest checkpoint + loss_curve.png
 uv run python -m modal run train/modal_train.py::download
+
+# Download a specific checkpoint (e.g. epoch_26.pt)
+uv run python -m modal run train/modal_train.py::download_specific
 ```
 
-This downloads the latest `epoch_XX.pt` and `loss_curve.png` into your local `checkpoints/` folder automatically.
+| Entrypoint | What it does |
+|---|---|
+| `::list_checkpoints` | Prints every file in the Modal volume with its size — useful to verify what's there before downloading |
+| `::download` | Downloads the **latest** `epoch_XX.pt` + `loss_curve.png` to your local `checkpoints/` folder |
+| `::download_specific` | Downloads `epoch_26.pt` specifically — edit the `filename` line in `modal_train.py` to target a different epoch |
+
+> **Large checkpoints (~1.9 GB for `medium`):** the download streams chunks directly to disk, so it won't run out of memory regardless of file size.
 
 ---
 
@@ -335,6 +348,8 @@ Then open **http://localhost:7860** in your browser.
 **What weights does it use?**
 - By default (`uv run sair ui`) → loads the **latest `epoch_XX.pt`** from your local `checkpoints/` folder
 - With `--hf` flag → loads pretrained **GPT-2 from HuggingFace** (auto-downloads on first use)
+
+> **`MODEL_PRESET` doesn't need to match your checkpoint for inference.** The loader reads the architecture directly from the checkpoint's saved weights, so `sair ui` and `sair generate` always use the correct model size automatically.
 
 > **No checkpoint yet?** Either run training first, or use `--hf gpt2` to demo with pretrained weights immediately.
 
@@ -538,10 +553,11 @@ tests/test_trainer.py .....                                             [100%]
 | Problem | Fix |
 |---------|-----|
 | `modal: command not found` | Use `uv run python -m modal` instead of `modal` |
-| `Specify a Modal Function or local entrypoint` | Always use `::main` or `::download` — the file has two entrypoints so Modal can't auto-detect |
+| `Specify a Modal Function or local entrypoint` | Always use `::main`, `::download`, `::download_specific`, or `::list_checkpoints` — the file has multiple entrypoints so Modal requires explicit `::name` syntax |
 | `modal.Mount has no attribute` | Modal v1.x removed `Mount` — use `image.add_local_dir()` |
 | `CUDA out of memory` locally | Your local GPU is too small for `medium` — run on Modal A100 instead |
-| Resumed run but loss jumped up | You changed `MODEL_PRESET` between runs — architectures are incompatible, start fresh |
+| Resumed run but loss jumped up | You changed `MODEL_PRESET` between runs — weight shapes are incompatible for resuming, start fresh |
+| `size mismatch` on `sair ui` or `sair generate` | This shouldn't happen anymore — the loader auto-detects arch from the checkpoint. If you see it, your checkpoint may be from a very old version; re-download from Modal |
 | Model generates `Page \| 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
 
 ---
