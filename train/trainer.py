@@ -92,14 +92,18 @@ def train(
     tokenizer     = None,
     context_size  = None,
     use_wandb     = True,
+    resume_from   = None,
+    model_config  = None,
 ):
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
 
     if tokenizer is None:
         tokenizer = tiktoken.encoding_for_model("gpt2")
+    if model_config is None:
+        model_config = MODEL_CONFIG
     if context_size is None:
-        context_size = MODEL_CONFIG["context_length"]
+        context_size = model_config["context_length"]
 
     optimizer  = torch.optim.AdamW(
         model.parameters(), lr=LEARNING_RATE,
@@ -107,7 +111,19 @@ def train(
     )
     scheduler  = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs)
     criterion  = nn.CrossEntropyLoss()
-    grad_accum = max(1, TOTAL_BATCH // (MICRO_BATCH * MAX_LEN))
+    grad_accum = max(1, TOTAL_BATCH // (MICRO_BATCH * context_size))
+
+    # ── Resume from checkpoint ────────────────────────────────────────────────
+    start_epoch = 0
+    if resume_from is not None:
+        ckpt = torch.load(resume_from, map_location=device)
+        model.load_state_dict(ckpt["model"])
+        optimizer.load_state_dict(ckpt["optimizer"])
+        start_epoch = ckpt["epoch"]
+        # advance scheduler to match saved epoch
+        for _ in range(start_epoch):
+            scheduler.step()
+        print(f"Resumed from {resume_from} — continuing from epoch {start_epoch + 1}\n")
 
     # ── W&B init ──────────────────────────────────────────────────────────────
     wb = None
@@ -116,9 +132,9 @@ def train(
             import wandb
             wb = wandb.init(
                 project = "sair-minigpt",
-                name    = f"{MODEL_PRESET}-harry-potter",
+                name    = f"{model_config.get('emb_dim', '?')}d-{model_config.get('n_layers', '?')}L-harry-potter",
                 config  = {
-                    **MODEL_CONFIG,
+                    **model_config,
                     "num_epochs":    num_epochs,
                     "learning_rate": LEARNING_RATE,
                     "weight_decay":  WEIGHT_DECAY,
@@ -139,7 +155,7 @@ def train(
     total_tokens = 0
     global_step  = 0
 
-    for epoch in range(num_epochs):
+    for epoch in range(start_epoch, num_epochs):
         model.train()
         t0 = time.time()
         optimizer.zero_grad()

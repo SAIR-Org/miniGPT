@@ -26,7 +26,7 @@ CKPT_DIR  = ROOT / "checkpoints"         # model checkpoints
 #  ├─────────────┼───────────┼────────────┼──────────────────────────────────┤
 #  │ tiny        │  ~10 M    │  256 tok   │ CPU — fast iteration / debugging  │
 #  │ small       │  ~50 M    │  512 tok   │ laptop GPU                        │
-#  │ medium      │  ~100 M   │  1024 tok  │ single GPU (8 GB+)                │
+#  │ medium      │  ~163 M   │  1024 tok  │ single GPU (8 GB+)                │
 #  └─────────────┴───────────┴────────────┴──────────────────────────────────┘
 #
 #  OFFICIAL GPT-2 ARCHITECTURES  — load pretrained weights with --hf

@@ -21,6 +21,25 @@
 
 ---
 
+## ⚡ Quick Start — Modal Cloud Run (3 steps)
+
+> For the full setup guide scroll to [Modal Cloud Training](#️-modal-cloud-training--full-guide).
+
+```bash
+# 1. Train on Modal A100 (~3 hrs, ~$12–15)
+uv run python -m modal run train/modal_train.py::main
+
+# 2. Download the final checkpoint to your machine
+uv run python -m modal run train/modal_train.py::download
+
+# 3. Launch the web UI and demo it live
+uv run sair ui        # → http://localhost:7860
+```
+
+> **Why download?** Training runs on Modal's cloud GPU — the checkpoint lives there, not on your machine. Step 2 pulls it locally so the UI can load it.
+
+---
+
 ## 📹 Demo
 
 <p align="center">
@@ -91,20 +110,26 @@ uv sync
 
 ### 🎛️ Step 2 — Pick your model size
 
-Open **`config.py`** and set `MODEL_PRESET`:
+| Preset | Params | Context | Best for |
+|--------|--------|---------|----------|
+| `tiny` | ~10 M | 256 tokens | No GPU — fast testing |
+| `small` | ~50 M | 512 tokens | Laptop GPU or Modal free tier ($5 credit) |
+| `medium` | ~163 M | 1024 tokens | Modal A100 — best quality ($30 credit) |
+| `custom` | you decide | you decide | [Custom architecture](#build-your-own-architecture) |
 
+> The param count includes the full vocabulary embedding table (50,257 × 768 ≈ 38M), which is why `medium` is 163M rather than the ~124M you might expect.
+
+**For local training**, open `config.py` and set:
 ```python
 MODEL_PRESET = "small"    # ← change this line
 ```
 
-| Preset | Params | Context | Best for |
-|--------|--------|---------|----------|
-| `tiny` | ~10 M | 256 tokens | No GPU — fast testing |
-| `small` | ~50 M | 512 tokens | Laptop GPU or Modal free tier |
-| `medium` | ~100 M | 1024 tokens | Dedicated GPU (8 GB+) |
-| `custom` | you decide | you decide | [Custom architecture](#build-your-own-architecture) |
+**For Modal cloud training**, the model is set directly in `train/modal_train.py` — `config.py` is ignored for cloud runs:
+```python
+config = MODELS["medium"]   # ← change this line in modal_train.py
+```
 
-> **Not sure?** Start with `"small"` on Modal — it's fast and gives good results.
+> This separation is intentional — your local config stays lightweight while cloud runs use the bigger model.
 
 ---
 
@@ -163,9 +188,7 @@ On CPU with `tiny` preset: ~5–10 min per epoch.
 
 **Option B — Modal cloud GPU** *(recommended — see full guide below)*
 ```bash
-uv run sair train --modal                        # via CLI
-# or equivalently:
-uv run python -m modal run train/modal_train.py  # direct
+uv run python -m modal run train/modal_train.py::main
 ```
 
 **Option C — Multi-GPU DDP**
@@ -187,13 +210,12 @@ Go to `modal.com` and sign up with GitHub.
 **Free tier:** You get **$5 immediately** (no card needed). Add a credit card to unlock the full **$30/month**. Credits reset monthly and don't roll over.
 
 **GPU costs:**
-| GPU | $/hr | 5 epochs on `small` model |
+| GPU | $/hr | 30 epochs on `medium` model |
 |-----|------|--------------------------|
-| T4  | ~$0.59 | ~2–3 hrs → ~$1.50 |
-| A100 | ~$3.70 | ~30–45 min → ~$2.50 |
+| T4  | ~$0.59 | ~8–10 hrs → ~$6 |
+| A100 | ~$3.70 | ~3 hrs → ~$12–15 |
 
-> A100 is actually cheaper for this job because it finishes 4× faster.
-> With only $5 (no card), **A100 still fits** — the run costs ~$2.50.
+> A100 is actually cheaper for large runs because it finishes 3–4× faster.
 
 #### 2. Authenticate the CLI
 
@@ -216,8 +238,10 @@ uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
 
 #### 4. Launch training
 
+> ⚠️ **Always specify the entrypoint explicitly.** The file has two entrypoints (`main` and `download`), so Modal requires `::name` syntax.
+
 ```bash
-uv run python -m modal run train/modal_train.py
+uv run python -m modal run train/modal_train.py::main
 ```
 
 Modal will:
@@ -229,18 +253,50 @@ Modal will:
 
 #### 5. Download your checkpoint
 
-First, list what's in the volume to confirm:
 ```bash
-uv run python -m modal volume ls sair-minigpt-checkpoints
+uv run python -m modal run train/modal_train.py::download
 ```
 
-Then download:
-```bash
-uv run python -m modal volume get sair-minigpt-checkpoints epoch_05.pt checkpoints/epoch_05.pt
-uv run python -m modal volume get sair-minigpt-checkpoints loss_curve.png checkpoints/loss_curve.png
+This downloads the latest `epoch_XX.pt` and `loss_curve.png` into your local `checkpoints/` folder automatically.
+
+---
+
+### 🔁 Training from scratch vs. resuming a run
+
+These are two different workflows — make sure you're using the right one.
+
+#### Train from scratch (default)
+
+Starts with random weights. Use this when:
+- You're training for the first time
+- You changed the model size (e.g. `small` → `medium`) — **you must start fresh if the architecture changes**
+- You want a clean run with no prior history
+
+`modal_train.py` does this by default — it builds a new `GPTModel` and calls `train()` with no `resume_from`.
+
+#### Resume from a checkpoint
+
+Picks up where a previous run left off — same model weights, same optimizer state, same LR schedule. Use this when:
+- Training was interrupted and you want to continue
+- You trained 5 epochs and want 5 more **on the same model size**
+
+To resume, pass the checkpoint path to `train()`:
+
+```python
+train(
+    model        = model,
+    ...
+    resume_from  = "/checkpoints/epoch_05.pt",  # ← picks up from epoch 6
+    num_epochs   = 10,                           # ← total target epochs (not additional)
+)
 ```
 
-> ⚠️ Files are saved at the **root of the volume** (`epoch_05.pt`), not under `/checkpoints/epoch_05.pt`. Use the filename directly.
+> ⚠️ **You cannot resume across model sizes.** If you trained a `small` checkpoint and switch to `medium`, the weight shapes are incompatible — start fresh.
+
+The checkpoint format saves everything needed to resume:
+```python
+{"epoch": 5, "model": model.state_dict(), "optimizer": optimizer.state_dict()}
+```
 
 ---
 
@@ -270,26 +326,26 @@ The CLI automatically loads the latest checkpoint from `checkpoints/`.
 ### 🌐 Step 7 — Open the web UI
 
 ```bash
-uv run sair ui
+uv run sair ui          # loads your trained checkpoint from checkpoints/
+uv run sair ui --hf gpt2   # loads pretrained GPT-2 instead (no checkpoint needed)
 ```
 
 Then open **http://localhost:7860** in your browser.
 
-> **No checkpoint?** Use `uv run sair ui --hf gpt2` (see Path B).
+**What weights does it use?**
+- By default (`uv run sair ui`) → loads the **latest `epoch_XX.pt`** from your local `checkpoints/` folder
+- With `--hf` flag → loads pretrained **GPT-2 from HuggingFace** (auto-downloads on first use)
+
+> **No checkpoint yet?** Either run training first, or use `--hf gpt2` to demo with pretrained weights immediately.
 
 ---
 
-## 📊 Real Training Example — Harry Potter (5 epochs)
+## 📊 Real Training Example — Harry Potter
 
-**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · 6 Harry Potter books · 5 epochs
+### Run 1 — small model, 5 epochs (quick test)
 
-**Training run:** ~88 seconds/epoch on A100 · total ~$2.50
-
-**Loss curve:**
-
-<p align="center">
-  <img src="assets/loss_curve.png" alt="Train vs Val Loss — Harry Potter 5 epochs" width="700"/>
-</p>
+**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · 6 Harry Potter books · 5 epochs  
+**Cost:** ~$2.50 · ~88 sec/epoch
 
 | Epoch | Train Loss | Val Loss |
 |-------|-----------|---------|
@@ -299,52 +355,36 @@ Then open **http://localhost:7860** in your browser.
 | 4 | ~3.6 | ~3.8 |
 | 5 | **3.49** | **3.74** |
 
-Loss dropped consistently across all 5 epochs with a healthy train/val gap — no overfitting.
-
-**W&B dashboard** (live curves during training):
-
-```
-wandb: Run history:
-wandb:  train/loss █▅▃▁▁
-wandb:    val/loss █▅▃▁▁
-wandb:    train/lr █▇▅▃▁
-```
-
-**Generated samples after 5 epochs:**
-
+**Generated sample after 5 epochs:**
 ```
 Prompt: "Harry Potter walked into"
 
 Harry Potter walked into the Phoenix - J. Rowling
-
-"So it't you't let us if they't
-him?" Harry said Mr. "Why
-you know I mean ...'re going to kill me, he've got to
-yourself.'t like your eyes."
-
-"What did you have a bit to
-Dumbledore" Harry.
+"So it't you't let us if they't him?" Harry said Mr. "Why
+you know I mean ...'re going to kill me, he've got to yourself."
 ```
 
-```
-Prompt: "Dumbledore looked at Harry and said"
+The model picks up character names, dialogue structure, and vocabulary after just 5 epochs. Contractions are broken and sentences aren't fully coherent yet — that improves significantly with more epochs and a bigger model.
 
-Dumbledore looked at Harry and said.
+---
 
-"We're not have to do with a
-for him." said Hagrid. "We'd be
-you."
+### Run 2 — medium model, 30 epochs (full run)
 
-"I't you a week, but I's not know," said Harry,
-and he said Sirius, but the ground.
-```
+**Setup:** `medium` preset (~163M params, 1024 context) · Modal A100 · 6 Harry Potter books · 30 epochs  
+**Cost:** ~$12–15 · ~3 hrs total
 
-The model picks up character names, dialogue structure, and Harry Potter vocabulary after just 5 epochs. Contractions are broken and sentences aren't fully coherent yet — that improves with more epochs.
+This is the recommended run for best output quality. The larger context window (1024 tokens) lets the model learn longer-range structure — multi-sentence dialogue, paragraph flow, consistent character voice.
 
-**To improve results:**
-- Bump `NUM_EPOCHS = 10` in `config.py` and retrain
-- Use `--temperature 0.6` for more focused output
+**Loss curve:**
+
+<p align="center">
+  <img src="assets/loss_curve.png" alt="Train vs Val Loss — Harry Potter 30 epochs" width="700"/>
+</p>
+
+**To get the best output:**
+- Use `--temperature 0.7` for focused, in-character text
 - Use `--max-tokens 200` for longer samples
+- Use `--method nucleus` (default) for natural variation
 
 ---
 
@@ -498,9 +538,10 @@ tests/test_trainer.py .....                                             [100%]
 | Problem | Fix |
 |---------|-----|
 | `modal: command not found` | Use `uv run python -m modal` instead of `modal` |
+| `Specify a Modal Function or local entrypoint` | Always use `::main` or `::download` — the file has two entrypoints so Modal can't auto-detect |
 | `modal.Mount has no attribute` | Modal v1.x removed `Mount` — use `image.add_local_dir()` |
-| `No such file or directory` when downloading checkpoint | Files are at volume root — use `epoch_05.pt` not `/checkpoints/epoch_05.pt` |
-| Checkpoint corrupted on load | Re-download: `modal volume get sair-minigpt-checkpoints epoch_05.pt checkpoints/epoch_05.pt` |
+| `CUDA out of memory` locally | Your local GPU is too small for `medium` — run on Modal A100 instead |
+| Resumed run but loss jumped up | You changed `MODEL_PRESET` between runs — architectures are incompatible, start fresh |
 | Model generates `Page \| 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
 
 ---

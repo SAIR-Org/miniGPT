@@ -27,7 +27,7 @@ def cmd_train(args):
 
     if args.modal:
         print("Launching training on Modal (A100)...")
-        subprocess.run(["python", "-m", "modal", "run", "train/modal_train.py"], check=True)
+        subprocess.run(["python", "-m", "modal", "run", "train/modal_train.py::main"], check=True)
         return
 
     if args.ddp:
