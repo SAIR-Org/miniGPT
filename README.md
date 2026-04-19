@@ -21,25 +21,6 @@
 
 ---
 
-## ⚡ Quick Start — Modal Cloud Run (3 steps)
-
-> For the full setup guide scroll to [Modal Cloud Training](#️-modal-cloud-training--full-guide).
-
-```bash
-# 1. Train on Modal A100 (~3 hrs, ~$12–15)
-uv run python -m modal run train/modal_train.py::main
-
-# 2. Download the final checkpoint to your machine
-uv run python -m modal run train/modal_train.py::download
-
-# 3. Launch the web UI and demo it live
-uv run sair ui        # → http://localhost:7860
-```
-
-> **Why download?** Training runs on Modal's cloud GPU — the checkpoint lives there, not on your machine. Step 2 pulls it locally so the UI can load it.
-
----
-
 ## 📹 Demo
 
 <p align="center">
@@ -52,13 +33,11 @@ uv run sair ui        # → http://localhost:7860
 
 ---
 
+## 🎯 What is this?
+
 > **Capstone project for [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch).**
 > Every function here (`GPTModel`, `generateV0`→`V3`, `trainerV3`, beam search) maps 1-to-1 to a notebook cell you already wrote.
 > **Haven't finished the notebooks yet? Start there first — then come back here.**
-
----
-
-## 🎯 What is this?
 
 You built a GPT from scratch in Module 5. miniGPT packages all of that into a real, runnable system:
 
@@ -73,9 +52,7 @@ You built a GPT from scratch in Module 5. miniGPT packages all of that into a re
 
 ---
 
-## 🗺️ Which path are you on?
-
-**Choose one to get started:**
+## 🗺️ Choose your path
 
 | | Path A — Train your own GPT | Path B — Use pretrained GPT-2 |
 |---|---|---|
@@ -108,58 +85,34 @@ uv sync
 
 ---
 
-### 🎛️ Step 2 — Pick your model size
+### 📂 Step 2 — Add your training data
 
-| Preset | Params | Context | Best for |
-|--------|--------|---------|----------|
-| `tiny` | ~10 M | 256 tokens | No GPU — fast testing |
-| `small` | ~50 M | 512 tokens | Laptop GPU or Modal free tier ($5 credit) |
-| `medium` | ~163 M | 1024 tokens | Modal A100 — best quality ($30 credit) |
-| `custom` | you decide | you decide | [Custom architecture](#build-your-own-architecture) |
-
-> The param count includes the full vocabulary embedding table (50,257 × 768 ≈ 38M), which is why `medium` is 163M rather than the ~124M you might expect.
-
-**For local training**, open `config.py` and set:
-```python
-MODEL_PRESET = "small"    # ← change this line
-```
-
-**For Modal cloud training**, the model is set directly in `train/modal_train.py` — `config.py` is ignored for cloud runs:
-```python
-config = MODELS["medium"]   # ← change this line in modal_train.py
-```
-
-> This separation is intentional — your local config stays lightweight while cloud runs use the bigger model.
-
----
-
-### 📂 Step 3 — Add your training data
+Drop any `.txt` or `.pdf` files into `data/raw/`:
 
 ```bash
-cp my_book.txt  data/raw/      # .txt files work
-cp my_paper.pdf data/raw/      # .pdf files work too
+cp my_book.txt  data/raw/
+cp my_paper.pdf data/raw/
 ```
 
 Any text works — novels, Wikipedia, research papers. More text = better model.
 
 > **No data handy?** Download a free book from [Project Gutenberg](https://www.gutenberg.org).
 >
-> **Using Harry Potter books?** The SAIR repo has 6 of the 7 books (Book 2 — Chamber of Secrets is missing) at:
+> **Using Harry Potter books?** The SAIR repo has 6 of the 7 books at:
 > `4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/`
-> Copy them with:
 > ```bash
 > cp "../4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/"*.txt data/raw/
 > ```
 
 ---
 
-### 🔧 Step 4 — Tokenize
+### 🔧 Step 3 — Tokenize
 
 ```bash
 uv run sair prepare
 ```
 
-Reads everything in `data/raw/`, strips formatting artifacts, tokenizes with GPT-2 tokenizer, saves to `data/processed/`.
+Reads everything in `data/raw/`, strips formatting artifacts, tokenizes with the GPT-2 tokenizer, saves to `data/processed/`.
 
 Expected output for 6 Harry Potter books:
 ```
@@ -178,20 +131,45 @@ Done. Ready to train.
 
 ---
 
-### 🚂 Step 5 — Train
+### 🎛️ Step 4 — Pick your model size
 
-**Option A — Local (CPU or GPU)**
+| Preset | Params | Context | Best for |
+|--------|--------|---------|----------|
+| `tiny` | ~10 M | 256 tokens | No GPU — fast testing, first run |
+| `small` | ~50 M | 512 tokens | Laptop GPU |
+| `medium` | ~163 M | 1024 tokens | Cloud GPU — best quality |
+| `custom` | you decide | you decide | [Custom architecture](#-build-your-own-architecture) |
+
+> The param count includes the full vocabulary embedding table (50,257 × 768 ≈ 38M), which is why `medium` is 163M rather than the ~124M you might expect.
+
+**Start with `tiny` if you have no GPU** — it trains in minutes on CPU and lets you verify the full pipeline works before committing to a longer run.
+
+Open `config.py` and set:
+```python
+MODEL_PRESET = "tiny"    # ← start here, change when ready
+```
+
+---
+
+### 🚂 Step 5 — Train locally
+
 ```bash
 uv run sair train
 ```
-On CPU with `tiny` preset: ~5–10 min per epoch.
 
-**Option B — Modal cloud GPU** *(recommended — see full guide below)*
-```bash
-uv run python -m modal run train/modal_train.py::main
-```
+This runs on your machine using whatever hardware you have (CPU or GPU).
 
-**Option C — Multi-GPU DDP**
+**Expected time per epoch:**
+
+| Hardware | `tiny` | `small` | `medium` |
+|----------|--------|---------|---------|
+| CPU only | ~5–10 min | ~30–60 min | not recommended |
+| Laptop GPU (4 GB) | ~1–2 min | ~5–10 min | out of memory |
+| Desktop GPU (8 GB+) | ~30 sec | ~2–3 min | ~8–10 min |
+
+> **No GPU and too slow?** Jump to [Modal cloud training](#️-scale-up--modal-cloud-training) to run on an A100.
+
+**Multi-GPU (if you have more than one GPU):**
 ```bash
 uv run sair train --ddp              # uses all GPUs
 uv run sair train --ddp --nproc 2    # specify count
@@ -199,36 +177,82 @@ uv run sair train --ddp --nproc 2    # specify count
 
 ---
 
-### ☁️ Modal Cloud Training — Full Guide
+### 💬 Step 6 — Generate text
 
-[Modal](https://modal.com) gives you cloud GPU access with a free tier. Here's the complete setup we used in our live session.
+```bash
+uv run sair generate "Harry Potter walked into"
+```
 
-#### 1. Create a Modal account
+The CLI automatically loads the latest checkpoint from `checkpoints/`.
+
+**Generation strategies:**
+
+| Method | Flag | Effect |
+|--------|------|--------|
+| Nucleus (default) | `--method nucleus` | Natural, varied output |
+| Top-K | `--method top_k` | Sample from top K tokens |
+| Greedy | `--method greedy` | Deterministic, can be repetitive |
+| Beam search | `--beams 3` | Explores multiple paths |
+
+**Useful flags:**
+- `--temperature 0.7` — lower = more focused, higher = more creative
+- `--max-tokens 200` — how many tokens to generate (default: 100)
+
+---
+
+### 🌐 Step 7 — Open the web UI
+
+```bash
+uv run sair ui
+```
+
+Then open **http://localhost:7860** in your browser.
+
+**What weights does it use?**
+- By default → loads the **latest `epoch_XX.pt`** from your local `checkpoints/` folder
+- With `--hf` flag → loads **pretrained GPT-2** from HuggingFace (no training needed)
+
+```bash
+uv run sair ui              # your trained model
+uv run sair ui --hf gpt2    # OpenAI pretrained GPT-2 124M
+```
+
+> **No checkpoint yet?** Use `--hf gpt2` to demo with pretrained weights immediately.
+
+---
+
+## ☁️ Scale Up — Modal Cloud Training
+
+Once you've verified the pipeline works locally, use Modal to train on a cloud A100 GPU — much faster and enables bigger models.
+
+### What is Modal?
+
+[Modal](https://modal.com) is a cloud compute platform. You write normal Python, decorate it with `@app.function(gpu="A100")`, and it runs on a cloud GPU. No server setup, no SSH, no Docker knowledge required.
+
+### Step 1 — Create a Modal account
 
 Go to `modal.com` and sign up with GitHub.
 
-**Free tier:** You get **$5 immediately** (no card needed). Add a credit card to unlock the full **$30/month**. Credits reset monthly and don't roll over.
+**Free tier:** You get **$5 immediately** (no card needed). Add a credit card to unlock **$30/month**.
 
-**GPU costs:**
-| GPU | $/hr | 30 epochs on `medium` model |
-|-----|------|--------------------------|
+| GPU | $/hr | 30 epochs on `medium` |
+|-----|------|----------------------|
 | T4  | ~$0.59 | ~8–10 hrs → ~$6 |
 | A100 | ~$3.70 | ~3 hrs → ~$12–15 |
 
-> A100 is actually cheaper for large runs because it finishes 3–4× faster.
+> A100 finishes 3–4× faster — often cheaper overall for large runs.
 
-#### 2. Authenticate the CLI
+### Step 2 — Authenticate
 
 ```bash
 uv run python -m modal token new
 ```
 
-This opens your browser. Click approve and come back.
+Opens your browser. Click approve and come back.
 
-> ⚠️ **Use `uv run python -m modal`** everywhere instead of just `modal`.
-> The `modal` binary in the venv has a broken shebang pointing to an old path.
+> ⚠️ Always use `uv run python -m modal` — not just `modal`. The `modal` binary in the venv has a broken shebang.
 
-#### 3. Set up W&B for live loss curves
+### Step 3 — Set up W&B for live loss curves
 
 Get your API key at `wandb.ai/authorize`, then:
 
@@ -236,9 +260,11 @@ Get your API key at `wandb.ai/authorize`, then:
 uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
 ```
 
-#### 4. Launch training
+Skip this step if you don't want W&B — training will fall back silently.
 
-> ⚠️ **Always specify the entrypoint explicitly.** The file has two entrypoints (`main` and `download`), so Modal requires `::name` syntax.
+### Step 4 — Launch training
+
+> ⚠️ Always specify `::main` or `::download` explicitly — the file has two entrypoints so Modal requires it.
 
 ```bash
 uv run python -m modal run train/modal_train.py::main
@@ -251,140 +277,51 @@ Modal will:
 - Stream logs to your terminal in real time
 - Print a W&B URL — open it to watch loss curves live
 
-#### 5. Download your checkpoint
+### Step 5 — Download your checkpoint
+
+Training runs on Modal's cloud — the checkpoint lives there, not on your machine. Pull it down:
 
 ```bash
 uv run python -m modal run train/modal_train.py::download
 ```
 
-This downloads the latest `epoch_XX.pt` and `loss_curve.png` into your local `checkpoints/` folder automatically.
+This downloads the latest `epoch_XX.pt` + `loss_curve.png` into your local `checkpoints/` folder.
+
+### Step 6 — Run the UI
+
+```bash
+uv run sair ui    # → http://localhost:7860
+```
 
 ---
 
-### 🔁 Training from scratch vs. resuming a run
-
-These are two different workflows — make sure you're using the right one.
+## 🔁 Training from scratch vs. resuming
 
 #### Train from scratch (default)
 
 Starts with random weights. Use this when:
 - You're training for the first time
-- You changed the model size (e.g. `small` → `medium`) — **you must start fresh if the architecture changes**
-- You want a clean run with no prior history
-
-`modal_train.py` does this by default — it builds a new `GPTModel` and calls `train()` with no `resume_from`.
+- You changed the model size (`small` → `medium`) — **must start fresh if architecture changes**
 
 #### Resume from a checkpoint
 
-Picks up where a previous run left off — same model weights, same optimizer state, same LR schedule. Use this when:
-- Training was interrupted and you want to continue
-- You trained 5 epochs and want 5 more **on the same model size**
-
-To resume, pass the checkpoint path to `train()`:
+Picks up where a previous run left off — same weights, optimizer state, and LR schedule. Use this when training was interrupted or you want more epochs on the same model.
 
 ```python
 train(
     model        = model,
     ...
-    resume_from  = "/checkpoints/epoch_05.pt",  # ← picks up from epoch 6
-    num_epochs   = 10,                           # ← total target epochs (not additional)
+    resume_from  = "/checkpoints/epoch_05.pt",  # ← continues from epoch 6
+    num_epochs   = 10,                           # ← total target (not additional)
 )
 ```
 
-> ⚠️ **You cannot resume across model sizes.** If you trained a `small` checkpoint and switch to `medium`, the weight shapes are incompatible — start fresh.
+> ⚠️ **You cannot resume across model sizes.** `small` → `medium` means weight shapes are incompatible — start fresh.
 
-The checkpoint format saves everything needed to resume:
+The checkpoint saves everything needed:
 ```python
 {"epoch": 5, "model": model.state_dict(), "optimizer": optimizer.state_dict()}
 ```
-
----
-
-### 💬 Step 6 — Generate text
-
-```bash
-uv run sair generate "Once upon a time"
-```
-
-The CLI automatically loads the latest checkpoint from `checkpoints/`.
-
-**Generation strategies:**
-
-| Method | Command | Effect |
-|--------|---------|--------|
-| Nucleus (default) | `--method nucleus --temperature 0.9` | Natural, varied |
-| Top-K | `--method top_k` | Sample from top K tokens |
-| Greedy | `--method greedy` | Deterministic, repetitive |
-| Beam search | `--beams 3` | Explores multiple paths |
-
-**Additional flags:**
-- `--temperature T` — `<1` more focused · `>1` more creative
-- `--max-tokens N` — how many tokens to generate (default: 100)
-
----
-
-### 🌐 Step 7 — Open the web UI
-
-```bash
-uv run sair ui          # loads your trained checkpoint from checkpoints/
-uv run sair ui --hf gpt2   # loads pretrained GPT-2 instead (no checkpoint needed)
-```
-
-Then open **http://localhost:7860** in your browser.
-
-**What weights does it use?**
-- By default (`uv run sair ui`) → loads the **latest `epoch_XX.pt`** from your local `checkpoints/` folder
-- With `--hf` flag → loads pretrained **GPT-2 from HuggingFace** (auto-downloads on first use)
-
-> **No checkpoint yet?** Either run training first, or use `--hf gpt2` to demo with pretrained weights immediately.
-
----
-
-## 📊 Real Training Example — Harry Potter
-
-### Run 1 — small model, 5 epochs (quick test)
-
-**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · 6 Harry Potter books · 5 epochs  
-**Cost:** ~$2.50 · ~88 sec/epoch
-
-| Epoch | Train Loss | Val Loss |
-|-------|-----------|---------|
-| 1 | ~5.2 | ~5.4 |
-| 2 | ~4.3 | ~4.5 |
-| 3 | ~3.9 | ~4.1 |
-| 4 | ~3.6 | ~3.8 |
-| 5 | **3.49** | **3.74** |
-
-**Generated sample after 5 epochs:**
-```
-Prompt: "Harry Potter walked into"
-
-Harry Potter walked into the Phoenix - J. Rowling
-"So it't you't let us if they't him?" Harry said Mr. "Why
-you know I mean ...'re going to kill me, he've got to yourself."
-```
-
-The model picks up character names, dialogue structure, and vocabulary after just 5 epochs. Contractions are broken and sentences aren't fully coherent yet — that improves significantly with more epochs and a bigger model.
-
----
-
-### Run 2 — medium model, 30 epochs (full run)
-
-**Setup:** `medium` preset (~163M params, 1024 context) · Modal A100 · 6 Harry Potter books · 30 epochs  
-**Cost:** ~$12–15 · ~3 hrs total
-
-This is the recommended run for best output quality. The larger context window (1024 tokens) lets the model learn longer-range structure — multi-sentence dialogue, paragraph flow, consistent character voice.
-
-**Loss curve:**
-
-<p align="center">
-  <img src="assets/loss_curve.png" alt="Train vs Val Loss — Harry Potter 30 epochs" width="700"/>
-</p>
-
-**To get the best output:**
-- Use `--temperature 0.7` for focused, in-character text
-- Use `--max-tokens 200` for longer samples
-- Use `--method nucleus` (default) for natural variation
 
 ---
 
@@ -417,25 +354,50 @@ Weights download automatically on first use and cache locally.
 
 ---
 
-## 🔨 Build your own architecture
+## 📊 Real Training Example — Harry Potter
 
-Edit the `"custom"` entry in `config.py`:
+### Run 1 — tiny model, 5 epochs (verify pipeline)
 
-```python
-MODEL_PRESET = "custom"
+**Setup:** `tiny` (~10M params, 256 context) · CPU · 6 Harry Potter books  
+**Purpose:** confirm everything works before investing GPU time
 
-MODELS["custom"] = {
-    "vocab_size"    : 50257,   # keep this — matches GPT-2 tokenizer
-    "context_length": 512,     # tokens the model sees at once
-    "emb_dim"       : 384,     # embedding size
-    "n_heads"       : 6,       # attention heads (emb_dim divisible by this)
-    "n_layers"      : 6,       # number of transformer blocks
-    "drop_rate"     : 0.1,     # dropout regularization
-    "qkv_bias"      : False,   # True matches official GPT-2
-}
+### Run 2 — small model, 5 epochs (first real run)
+
+**Setup:** `small` (~50M params, 512 context) · Modal A100 · 5 epochs · ~$2.50
+
+| Epoch | Train Loss | Val Loss |
+|-------|-----------|---------|
+| 1 | ~5.2 | ~5.4 |
+| 2 | ~4.3 | ~4.5 |
+| 3 | ~3.9 | ~4.1 |
+| 4 | ~3.6 | ~3.8 |
+| 5 | **3.49** | **3.74** |
+
+**Generated sample after 5 epochs:**
+```
+Prompt: "Harry Potter walked into"
+
+Harry Potter walked into the Phoenix - J. Rowling
+"So it't you't let us if they't him?" Harry said Mr. "Why
+you know I mean ...'re going to kill me, he've got to yourself."
 ```
 
-> **Rule of thumb:** Doubling both `emb_dim` and `n_layers` roughly 4× the parameter count.
+Character names, dialogue structure, and HP vocabulary appear after just 5 epochs. Not fully coherent yet — that improves with a bigger model and more epochs.
+
+### Run 3 — medium model, 30 epochs (full quality run)
+
+**Setup:** `medium` (~163M params, 1024 context) · Modal A100 · 30 epochs · ~$12–15
+
+The 1024-token context lets the model learn longer-range structure — multi-sentence dialogue, paragraph flow, consistent character voice.
+
+<p align="center">
+  <img src="assets/loss_curve.png" alt="Train vs Val Loss — Harry Potter 30 epochs" width="700"/>
+</p>
+
+**Best inference settings for this model:**
+```bash
+uv run sair generate "Harry Potter walked into" --temperature 0.7 --max-tokens 200
+```
 
 ---
 
@@ -473,6 +435,28 @@ miniGPT/
 
 ---
 
+## 🔨 Build your own architecture
+
+Edit the `"custom"` entry in `config.py`:
+
+```python
+MODEL_PRESET = "custom"
+
+MODELS["custom"] = {
+    "vocab_size"    : 50257,   # keep this — matches GPT-2 tokenizer
+    "context_length": 512,     # tokens the model sees at once
+    "emb_dim"       : 384,     # embedding size
+    "n_heads"       : 6,       # attention heads (emb_dim must be divisible by this)
+    "n_layers"      : 6,       # number of transformer blocks
+    "drop_rate"     : 0.1,     # dropout regularization
+    "qkv_bias"      : False,   # True matches official GPT-2
+}
+```
+
+> **Rule of thumb:** Doubling both `emb_dim` and `n_layers` roughly 4× the parameter count.
+
+---
+
 ## 📈 W&B + Matplotlib integration
 
 Training automatically logs to [Weights & Biases](https://wandb.ai) and saves a loss plot.
@@ -480,16 +464,13 @@ Training automatically logs to [Weights & Biases](https://wandb.ai) and saves a 
 **What gets logged:**
 - Every eval step: `train/loss`, `val/loss`, `learning_rate`, `tokens_seen`
 - Every epoch: generated text sample as W&B artifact
-- After training: loss curve PNG uploaded to W&B + saved to `checkpoints/loss_curve.png`
+- After training: loss curve PNG saved to `checkpoints/loss_curve.png`
 
-**To disable W&B** (train without logging):
-
-```python
-# in train/trainer.py, change the default:
-def train(..., use_wandb=False):
+**To disable W&B:**
+```bash
+# Just don't create the wandb-secret — training falls back silently
+# Or pass use_wandb=False directly to train()
 ```
-
-Or just don't create the `wandb-secret` on Modal — training falls back silently.
 
 ---
 
@@ -538,11 +519,11 @@ tests/test_trainer.py .....                                             [100%]
 | Problem | Fix |
 |---------|-----|
 | `modal: command not found` | Use `uv run python -m modal` instead of `modal` |
-| `Specify a Modal Function or local entrypoint` | Always use `::main` or `::download` — the file has two entrypoints so Modal can't auto-detect |
-| `modal.Mount has no attribute` | Modal v1.x removed `Mount` — use `image.add_local_dir()` |
-| `CUDA out of memory` locally | Your local GPU is too small for `medium` — run on Modal A100 instead |
-| Resumed run but loss jumped up | You changed `MODEL_PRESET` between runs — architectures are incompatible, start fresh |
-| Model generates `Page \| 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
+| `Specify a Modal Function or local entrypoint` | Always use `::main` or `::download` — the file has two entrypoints so Modal requires it |
+| `CUDA out of memory` locally | Your local GPU is too small for `medium` — use `tiny`/`small` locally, or run on Modal A100 |
+| Resumed run but loss jumped up | You changed model size between runs — architectures are incompatible, start fresh |
+| Model generates `Page \| 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` strips page headers automatically |
+| UI returns `{"error": "Model not loaded"}` | No checkpoint in `checkpoints/` — train first or use `--hf gpt2` |
 
 ---
 
