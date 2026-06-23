@@ -163,7 +163,10 @@ def train(
         for batch_idx, (x, y) in enumerate(train_loader):
             x, y    = x.to(device), y.to(device)
             logits  = model(x)
-            loss    = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
+            try:
+                loss    = criterion(logits.view(-1, logits.size(-1)), y.view(-1))
+            except ValueError:
+                loss    = criterion(logits[:, -1, :].view(-1, logits[:, -1, :].size(-1)), y.view(-1))
             loss    = loss / grad_accum
             loss.backward()
 
@@ -202,14 +205,18 @@ def train(
         scheduler.step()
 
         # ── end-of-epoch sample ───────────────────────────────────────────────
-        sample = generate(
-            model, start_context, max_new_tokens=60,
-            context_size=context_size,
-            tokenizer=tokenizer, device=device,
-            temperature=0.8, top_k=50,
-        )
-        print(f"\nSample (epoch {epoch+1}):\n  {sample}\n")
+        try: 
+            sample = generate(
+                model, start_context, max_new_tokens=60,
+                context_size=context_size,
+                tokenizer=tokenizer, device=device,
+                temperature=0.8, top_k=50,
+            )
 
+            print(f"\nSample (epoch {epoch+1}):\n  {sample}\n")
+        except RuntimeError:
+            print("Cannot generate output, it seems like you running a classification task")
+            sample = ""
         if wb:
             import wandb
             wb.log({

@@ -4,6 +4,7 @@ from config import HF_MODELS, MODEL_CONFIG, VARIANT, data_dir_classification
 from data.dataset import get_classification_dataloaders
 from model.gpt import GPTModel
 from finetune.instructure_follower_finetuning import loading_model
+from train.trainer import train
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
