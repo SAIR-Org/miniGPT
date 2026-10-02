@@ -1,3 +1,4 @@
+
 <p align="center">
   <img src="ui/SAiR_logo.jpg" alt="SAIR Logo" width="160"/>
 </p>
@@ -17,13 +18,17 @@
   <img src="https://img.shields.io/badge/PyTorch-2.2%2B-orange?style=flat-square" alt="PyTorch"/>
   <img src="https://img.shields.io/badge/tests-39%20passing-success?style=flat-square" alt="Tests"/>
   <img src="https://img.shields.io/badge/package%20manager-uv-purple?style=flat-square" alt="uv"/>
+  <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License"/>
 </p>
+
+> 📌 **The official capstone of the [SAIR Jr. ML Engineering Track](https://github.com/SAIR-Org/SAIR_Jr)** — bottom-up, depth-first. Every function here (`GPTModel`, `generateV0`→`V3`, `trainerV3`, beam search) maps 1-to-1 to a notebook cell you already wrote in Module 5.
 
 ---
 
 ## ⚡ Quick Start — Modal Cloud Run (3 steps)
 
 > For the full setup guide scroll to [Modal Cloud Training](#️-modal-cloud-training--full-guide).
+
 ```bash
 # 1. Train on Modal A100 (~3 hrs, ~$12–15)
 uv run python -m modal run train/modal_train.py::main
@@ -33,20 +38,36 @@ uv run python -m modal run train/modal_train.py::download
 
 # 3. Launch the web UI and demo it live
 uv run sair ui        # → http://localhost:7860
-
 ```
 
 > **Why download?** Training runs on Modal's cloud GPU — the checkpoint lives there, not on your machine. Step 2 pulls it locally so the UI can load it.
 
 ---
 
-## 📹 Demo
+## 🎯 Is This Project For You?
+
+### ✅ **Build this if:**
+- You've completed [Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch)
+- You want to see your from-scratch GPT packaged as a real product
+- You want hands-on experience with cloud GPU training (Modal)
+- You want a portfolio-ready full-stack ML system
+
+### 🚀 **Use pretrained mode (Path B) if:**
+- You want to demo an LLM **right now** without training
+- You're curious about the deployment side but not ready for the training side
+- You need a working system to show someone in the next 5 minutes
+
+> **⚠️ Haven't finished the notebooks yet?** Start with [Module 5](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch) first — then come back here. miniGPT is the capstone, not the entry point.
 
 ---
 
-> **Capstone project for [SAIR Jr. — Module 5: GPT from Scratch](https://www.google.com/search?q=https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%2520from%2520scratch).**
-> Every function here (`GPTModel`, `generateV0`→`V3`, `trainerV3`, beam search) maps 1-to-1 to a notebook cell you already wrote.
-> **Haven't finished the notebooks yet? Start there first — then come back here.**
+## 📹 Demo
+
+<p align="center">
+  <img src="sair_gpt_demo.gif" alt="miniGPT live demo" width="720"/>
+</p>
+
+*Live generation from a fine-tuned GPT-2 checkpoint running in the SAIR web UI.*
 
 ---
 
@@ -73,7 +94,7 @@ You built a GPT from scratch in Module 5. miniGPT packages all of that into a re
 | --- | --- | --- |
 | **What you need** | Text or PDF files | Nothing — weights auto-download |
 | **Time to first output** | Minutes (tiny) to hours (medium) | ~2 minutes |
-| **Jump to** | [Step 1 below](https://www.google.com/search?q=%23-step-1-install) | [Skip to Path B](https://www.google.com/search?q=%23path-b--skip-training-load-pretrained-gpt-2) |
+| **Jump to** | [Step 1 below](#-step-1--install) | [Skip to Path B](#path-b--skip-training-load-pretrained-gpt-2) |
 
 ---
 
@@ -93,7 +114,6 @@ cd miniGPT
 
 # Set up the environment
 uv sync
-
 ```
 
 > ✅ You should see: `All packages installed. Resolved N packages.`
@@ -108,7 +128,7 @@ uv sync
 | `tiny` | ~10 M | 256 tokens | No GPU — fast testing |
 | `small` | ~50 M | 512 tokens | Laptop GPU or Modal free tier ($5 credit) |
 | `medium` | ~163 M | 1024 tokens | Modal A100 — best quality ($30 credit) |
-| `custom` | you decide | you decide | [Custom architecture](https://www.google.com/search?q=%23build-your-own-architecture) |
+| `custom` | you decide | you decide | [Custom architecture](#-build-your-own-architecture) |
 
 > The param count includes the full vocabulary embedding table (50,257 × 768 ≈ 38M), which is why `medium` is 163M rather than the ~124M you might expect.
 
@@ -116,14 +136,12 @@ uv sync
 
 ```python
 MODEL_PRESET = "small"    # ← change this line
-
 ```
 
 **For Modal cloud training**, the model is set directly in `train/modal_train.py` — `config.py` is ignored for cloud runs:
 
 ```python
 config = MODELS["medium"]   # ← change this line in modal_train.py
-
 ```
 
 > This separation is intentional — your local config stays lightweight while cloud runs use the bigger model.
@@ -135,21 +153,19 @@ config = MODELS["medium"]   # ← change this line in modal_train.py
 ```bash
 cp my_book.txt  data/raw/      # .txt files work
 cp my_paper.pdf data/raw/      # .pdf files work too
-
 ```
 
 Any text works — novels, Wikipedia, research papers. More text = better model.
 
-> **No data handy?** Download a free book from [Project Gutenberg](https://www.google.com/search?q=https://www.gutenberg.org).
-> **Using Harry Potter books?** The SAIR repo has 6 of the 7 books (Book 2 — Chamber of Secrets is missing) at:
-> `4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/`
-> Copy them with:
-> ```bash
-> cp "../4_Applied Deep Learning with PyTorch/3_Sequence and NLP/harry_potter_txt/"*.txt data/raw/
-> 
-> ```
-> 
-> 
+> **No data handy?** Download a free book from [Project Gutenberg](https://www.gutenberg.org).
+>
+> **Public-domain suggestions:**
+> - *Pride and Prejudice* — Jane Austen
+> - *Moby Dick* — Herman Melville
+> - *Frankenstein* — Mary Shelley
+> - *The Complete Works of Shakespeare*
+>
+> All free, all legally safe for training.
 
 ---
 
@@ -157,26 +173,24 @@ Any text works — novels, Wikipedia, research papers. More text = better model.
 
 ```bash
 uv run sair prepare
-
 ```
 
 Reads everything in `data/raw/`, strips formatting artifacts, tokenizes with GPT-2 tokenizer, saves to `data/processed/`.
 
-Expected output for 6 Harry Potter books:
+Expected output:
 
 ```
 Loading corpus from data/raw ...
-  [txt] Book 1 - The Philosopher's Stone.txt
-  [txt] Book 3 - The Prisoner of Azkaban.txt
+  [txt] pride_and_prejudice.txt
+  [txt] moby_dick.txt
   ...
-Total characters : 6,233,476
+Total characters : 1,250,000
 
-  train:  1,740,472 tokens  →  data/processed/train_ids.bin
-  val  :    137,152 tokens  →  data/processed/val_ids.bin
-  test :     56,651 tokens  →  data/processed/test_ids.bin
+  train:  320,000 tokens  →  data/processed/train_ids.bin
+  val  :   25,000 tokens  →  data/processed/val_ids.bin
+  test :   10,000 tokens  →  data/processed/test_ids.bin
 
 Done. Ready to train.
-
 ```
 
 ---
@@ -187,7 +201,6 @@ Done. Ready to train.
 
 ```bash
 uv run sair train
-
 ```
 
 On CPU with `tiny` preset: ~5–10 min per epoch.
@@ -196,7 +209,6 @@ On CPU with `tiny` preset: ~5–10 min per epoch.
 
 ```bash
 uv run python -m modal run train/modal_train.py::main
-
 ```
 
 **Option C — Multi-GPU DDP**
@@ -204,18 +216,17 @@ uv run python -m modal run train/modal_train.py::main
 ```bash
 uv run sair train --ddp              # uses all GPUs
 uv run sair train --ddp --nproc 2    # specify count
-
 ```
 
 ---
 
 ### ☁️ Modal Cloud Training — Full Guide
 
-[Modal](https://www.google.com/search?q=https://modal.com) gives you cloud GPU access with a free tier. Here's the complete setup we used in our live session.
+[Modal](https://modal.com) gives you cloud GPU access with a free tier. Here's the complete setup we used in our live session.
 
 #### 1. Create a Modal account
 
-Go to `modal.com` and sign up with GitHub.
+Go to [modal.com](https://modal.com) and sign up with GitHub.
 
 **Free tier:** You get **$5 immediately** (no card needed). Add a credit card to unlock the full **$30/month**. Credits reset monthly and don't roll over.
 
@@ -232,21 +243,19 @@ Go to `modal.com` and sign up with GitHub.
 
 ```bash
 uv run python -m modal token new
-
 ```
 
 This opens your browser. Click approve and come back.
 
-> ⚠️ **Use `uv run python -m modal**` everywhere instead of just `modal`.
+> ⚠️ **Use `uv run python -m modal`** everywhere instead of just `modal`.
 > The `modal` binary in the venv has a broken shebang pointing to an old path.
 
 #### 3. Set up W&B for live loss curves
 
-Get your API key at `wandb.ai/authorize`, then:
+Get your API key at [wandb.ai/authorize](https://wandb.ai/authorize), then:
 
 ```bash
 uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
-
 ```
 
 #### 4. Launch training
@@ -255,7 +264,6 @@ uv run python -m modal secret create wandb-secret WANDB_API_KEY=your_key_here
 
 ```bash
 uv run python -m modal run train/modal_train.py::main
-
 ```
 
 Modal will:
@@ -277,7 +285,6 @@ uv run python -m modal run train/modal_train.py::download
 
 # Download a specific checkpoint (e.g. epoch_26.pt)
 uv run python -m modal run train/modal_train.py::download_specific
-
 ```
 
 | Entrypoint | What it does |
@@ -320,7 +327,6 @@ train(
     resume_from  = "/checkpoints/epoch_05.pt",  # ← picks up from epoch 6
     num_epochs   = 10,                           # ← total target epochs (not additional)
 )
-
 ```
 
 > ⚠️ **You cannot resume across model sizes.** If you trained a `small` checkpoint and switch to `medium`, the weight shapes are incompatible — start fresh.
@@ -329,7 +335,6 @@ The checkpoint format saves everything needed to resume:
 
 ```python
 {"epoch": 5, "model": model.state_dict(), "optimizer": optimizer.state_dict()}
-
 ```
 
 ---
@@ -338,7 +343,6 @@ The checkpoint format saves everything needed to resume:
 
 ```bash
 uv run sair generate "Once upon a time"
-
 ```
 
 The CLI automatically loads the latest checkpoint from `checkpoints/`.
@@ -364,14 +368,13 @@ The CLI automatically loads the latest checkpoint from `checkpoints/`.
 ```bash
 uv run sair ui          # loads your trained checkpoint from checkpoints/
 uv run sair ui --hf gpt2   # loads pretrained GPT-2 instead (no checkpoint needed)
-
 ```
 
 Then open **http://localhost:7860** in your browser.
 
 **What weights does it use?**
 
-* By default (`uv run sair ui`) → loads the **latest `epoch_XX.pt**` from your local `checkpoints/` folder
+* By default (`uv run sair ui`) → loads the **latest `epoch_XX.pt`** from your local `checkpoints/` folder
 * With `--hf` flag → loads pretrained **GPT-2 from HuggingFace** (auto-downloads on first use)
 
 > **`MODEL_PRESET` doesn't need to match your checkpoint for inference.** The loader reads the architecture directly from the checkpoint's saved weights, so `sair ui` and `sair generate` always use the correct model size automatically.
@@ -380,11 +383,11 @@ Then open **http://localhost:7860** in your browser.
 
 ---
 
-## 📊 Real Training Example — Harry Potter
+## 📊 Real Training Example — Public-Domain Corpus
 
 ### Run 1 — small model, 5 epochs (quick test)
 
-**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · 6 Harry Potter books · 5 epochs
+**Setup:** `small` preset (~50M params, 512 context) · Modal A100 · public-domain novels · 5 epochs
 
 **Cost:** ~$2.50 · ~88 sec/epoch
 
@@ -399,31 +402,34 @@ Then open **http://localhost:7860** in your browser.
 **Generated sample after 5 epochs:**
 
 ```
-Prompt: "Harry Potter walked into"
+Prompt: "The stranger walked into"
 
-Harry Potter walked into the Phoenix - J. Rowling
-"So it't you't let us if they't him?" Harry said Mr. "Why
-you know I mean ...'re going to kill me, he've got to yourself."
-
+The stranger walked into the room - and the door
+of the house. "I cannot see, I am not," said he, "but
+the man who had been a great deal more than the same."
 ```
 
-The model picks up character names, dialogue structure, and vocabulary after just 5 epochs. Contractions are broken and sentences aren't fully coherent yet — that improves significantly with more epochs and a bigger model.
+The model picks up dialogue structure, punctuation, and vocabulary after just 5 epochs. Sentence coherence improves significantly with more epochs and a bigger model.
 
 ---
 
 ### Run 2 — medium model, 30 epochs (full run)
 
-**Setup:** `medium` preset (~163M params, 1024 context) · Modal A100 · 6 Harry Potter books · 30 epochs
+**Setup:** `medium` preset (~163M params, 1024 context) · Modal A100 · public-domain corpus · 30 epochs
 
 **Cost:** ~$12–15 · ~3 hrs total
 
-This is the recommended run for best output quality. The larger context window (1024 tokens) lets the model learn longer-range structure — multi-sentence dialogue, paragraph flow, consistent character voice.
+This is the recommended run for best output quality. The larger context window (1024 tokens) lets the model learn longer-range structure — multi-sentence paragraphs, consistent style, and dialogue flow.
 
-**Loss curve:**
+**Loss curve** — from the last epoch checkpoint run (saved to `checkpoints/loss_curve.png`):
+
+<p align="center">
+  <img src="checkpoints/loss_curve.png" alt="Training loss curve — medium model, 26 epochs" width="600"/>
+</p>
 
 **To get the best output:**
 
-* Use `--temperature 0.7` for focused, in-character text
+* Use `--temperature 0.7` for focused, in-style text
 * Use `--max-tokens 200` for longer samples
 * Use `--method nucleus` (default) for natural variation
 
@@ -443,7 +449,6 @@ uv run sair generate "The future of AI is" --hf gpt2
 
 # Or open the full web UI
 uv run sair ui --hf gpt2-medium
-
 ```
 
 **Available variants:**
@@ -490,7 +495,6 @@ uv run python -m modal run train/modal_train.py::download
 
 # Pull down a specific target checkpoint from your remote workspace volume
 uv run python -m modal run train/modal_train.py::download_specific
-
 ```
 
 ---
@@ -525,7 +529,6 @@ uv run python -m modal run finetune/modal_classification_train.py::list_checkpoi
 
 # Fetch the best performing saved model state weights (best_model.pt) locally
 uv run python -m modal run finetune/modal_classification_train.py::download
-
 ```
 
 #### Launch Fine-Tuning Web App
@@ -534,7 +537,6 @@ Deploy an isolated classification web dashboard to evaluate predictions inside y
 
 ```bash
 uv run python ui_finetune/server.py
-
 ```
 
 ---
@@ -555,7 +557,6 @@ MODELS["custom"] = {
     "drop_rate"     : 0.1,     # dropout regularization
     "qkv_bias"      : False,   # True matches official GPT-2
 }
-
 ```
 
 > **Rule of thumb:** Doubling both `emb_dim` and `n_layers` roughly 4× the parameter count.
@@ -568,51 +569,81 @@ Every file is short, readable, and self-contained:
 
 ```
 miniGPT/
-├── config.py               ← all hyperparams — start here
-├── cli.py                  ← sair prepare | train | generate | ui
+├── config.py                    ← all hyperparams — start here
+├── cli.py                       ← sair prepare | train | generate | ui
+├── pyproject.toml               ← dependencies
+├── instruction_data.json        ← root-level instruction data
+├── sair_gpt_demo.gif            ← demo animation (shown above)
 │
 ├── classification_data/
-│   └── SMSSpamCollection.csv ← dataset used for classification tasks
+│   └── SMSSpamCollection.csv    ← dataset for classification tasks
+│
+├── instruction-follower-data/
+│   ├── example.json
+│   ├── instrution-data.json     ← main instruction dataset (note: typo preserved)
+│   ├── train.json
+│   ├── val.json
+│   └── test.json
 │
 ├── data/
-│   ├── prepare.py          ← reads .txt + .pdf, cleans, tokenizes, saves .bin
-│   └── dataset.py          ← GPT2Dataset + DataLoader
+│   ├── prepare.py               ← reads .txt + .pdf, cleans, tokenizes, saves .bin
+│   ├── dataset.py               ← GPT2Dataset + DataLoader
+│   ├── testing_data.py          ← test utilities
+│   ├── raw/                     ← your source text files
+│   ├── processed/               ← tokenized .bin files
+│   └── classification-processed/ ← classification CSV splits
 │
 ├── finetune/
 │   ├── classification_finetuning.py       ← transforms model layers & swaps heads
+│   ├── classification_finetuning.ipynb    ← notebook version
+│   ├── fine_tune.ipynb                    ← general fine-tuning notebook
 │   ├── instructure_follower_finetuning.py ← loads instruction data components
 │   ├── instructure_modal_train.py         ← remote instruction engine
-│   └── modal_classification_train.py      ← processes cloud spam classification
+│   └── modal_classification_train.py      ← cloud spam classification
 │
 ├── model/
-│   └── gpt.py              ← GPTModel: LayerNorm → MHA → FFN → Block
+│   └── gpt.py                   ← GPTModel: LayerNorm → MHA → FFN → Block
 │
 ├── train/
-│   ├── trainer.py          ← trainerV3: grad accumulation + cosine LR + W&B + plots
-│   ├── ddp_trainer.py      ← trainerV4: DistributedDataParallel
-│   └── modal_train.py      ← trainerV3 wrapped for Modal cloud GPU
+│   ├── trainer.py               ← trainerV3: grad accum + cosine LR + W&B + plots
+│   ├── ddp_trainer.py           ← trainerV4: DistributedDataParallel
+│   └── modal_train.py           ← trainerV3 wrapped for Modal cloud GPU
 │
 ├── inference/
-│   ├── generate.py         ← generateV0 (greedy) → V3 (beam search)
-│   └── load_weights.py     ← HuggingFace GPT-2 weight loading
+│   ├── generate.py              ← generateV0 (greedy) → V3 (beam search)
+│   └── load_weights.py          ← HuggingFace GPT-2 weight loading
 │
 ├── ui/
-│   ├── server.py           ← FastAPI backend
-│   └── index.html          ← SAIR-branded dark web UI
+│   ├── server.py                ← FastAPI backend
+│   ├── index.html               ← SAIR-branded dark web UI
+│   └── SAiR_logo.jpg
 │
 ├── ui_finetune/
-│   ├── server.py           ← fine-tuning FastAPI backend interface
-│   └── index.html          ← interface dashboard for checking fine-tuning models
+│   ├── server.py                ← fine-tuning FastAPI backend
+│   ├── index.html               ← dashboard for checking fine-tuning models
+│   └── SAiR_logo.jpg
 │
-└── tests/                  ← 39 tests covering full pipeline
-
+├── checkpoints/                 ← local checkpoints (gitignored)
+│   ├── epoch_XX.pt
+│   └── loss_curve.png
+│
+└── tests/                       ← 39 tests covering full pipeline
+    ├── conftest.py
+    ├── test_classification.py
+    ├── test_config.py
+    ├── test_data.py
+    ├── test_generate.py
+    ├── test_instructure_follower_finetuning.py
+    ├── test_model.py
+    ├── test_server.py
+    └── test_trainer.py
 ```
 
 ---
 
 ## 📈 W&B + Matplotlib integration
 
-Training automatically logs to [Weights & Biases](https://www.google.com/search?q=https://wandb.ai) and saves a loss plot.
+Training automatically logs to [Weights & Biases](https://wandb.ai) and saves a loss plot.
 
 **What gets logged:**
 
@@ -625,7 +656,6 @@ Training automatically logs to [Weights & Biases](https://www.google.com/search?
 ```python
 # in train/trainer.py, change the default:
 def train(..., use_wandb=False):
-
 ```
 
 Or just don't create the `wandb-secret` on Modal — training falls back silently.
@@ -647,7 +677,7 @@ miniGPT is deliberately **not** DRY (Don't Repeat Yourself).
 
 For a production-grade LLM system with clean architecture, see:
 
-> **[MyLLM](https://www.google.com/search?q=https://github.com/silvaxxx1/MyLLM)** — optimized LLM system from scratch, designed for students ready to go beyond the playground.
+> **[MyLLM](https://github.com/silvaxxx1/MyLLM)** — optimized LLM system from scratch, designed for students ready to go beyond the playground.
 
 ---
 
@@ -655,7 +685,6 @@ For a production-grade LLM system with clean architecture, see:
 
 ```bash
 uv run python -m pytest tests/ -v
-
 ```
 
 ```
@@ -670,7 +699,6 @@ tests/test_server.py .....                                              [ 89%]
 tests/test_trainer.py .....                                             [100%]
 
 39 passed in 8.65s
-
 ```
 
 ---
@@ -685,13 +713,68 @@ tests/test_trainer.py .....                                             [100%]
 | `CUDA out of memory` locally | Your local GPU is too small for `medium` — run on Modal A100 instead |
 | Resumed run but loss jumped up | You changed `MODEL_PRESET` between runs — weight shapes are incompatible for resuming, start fresh |
 | `size mismatch` on `sair ui` or `sair generate` | This shouldn't happen anymore — the loader auto-detects arch from the checkpoint. If you see it, your checkpoint may be from a very old version; re-download from Modal |
-| Model generates `Page | 548 Harry Potter...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
+| Model generates `Page \| 548 ...` | Run `uv run sair prepare` again — `prepare.py` now strips page headers automatically |
 
+---
+
+## 🤝 Get Help & Connect
+
+Stuck on setup? Confused by Modal? Want to share your trained model?
+
+[![Telegram](https://img.shields.io/badge/Telegram-Join_SAIR_Community-blue?logo=telegram)](https://t.me/+jPPlO6ZFDbtlYzU0)
+
+Join the SAIR community for:
+- ☁️ Help with Modal cloud setup and GPU training
+- 💬 Code reviews of your fine-tuned models
+- 🎯 Feedback on generated samples
+- 📚 Deep dives into transformer internals
+
+---
+
+## 👥 Contributors
+
+### 🏗️ Founding Team
+
+miniGPT was originally designed and built by:
+
+<table>
+<tr>
+<td align="center" width="220px">
+<a href="https://github.com/silvaxxx1">
+<img src="https://github.com/silvaxxx1.png" width="110px;" alt="Mohammed Awad Ahmed (Silva)"/><br/>
+<sub><b>Mohammed Awad Ahmed (Silva)</b></sub>
+</a><br/>
+<sub>Project Lead &amp; Architect</sub><br/>
+<sub><em>SAIR Jr. Track Lead</em></sub>
+</td>
+<td align="center" width="220px">
+<a href="https://github.com/SAIR-Org">
+<img src="https://github.com/SAIR-Org.png" width="110px;" alt="SAIR"/><br/>
+<sub><b>SAIR Community</b></sub>
+</a><br/>
+<sub>Contributing Students</sub><br/>
+<sub><em>Built during the 2025–2026 Cohort</em></sub>
+</td>
+</tr>
+</table>
+
+### 💎 All Contributors
+
+Every student who has contributed to miniGPT — code, tests, documentation, or improvements:
+
+<a href="https://github.com/SAIR-Org/miniGPT/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=SAIR-Org/miniGPT&max=200" alt="miniGPT contributors" />
+</a>
+
+<br/>
+<br/>
+
+**Want your name here?** Fix a bug, add a test, improve the docs, or submit a feature.
 ---
 
 ## 🙏 Acknowledgements
 
-* [SAIR Jr. — Module 5: GPT from Scratch](https://www.google.com/search?q=https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%2520from%2520scratch) — the course this project implements
+* [SAIR Jr. — Module 5: GPT from Scratch](https://github.com/SAIR-Org/SAIR_Jr/tree/main/5_GPT%20from%20scratch) — the course this project implements
 * Raschka, *Build a Large Language Model From Scratch*, Manning 2024
 * Vaswani et al., *Attention Is All You Need*, NeurIPS 2017
 
@@ -702,3 +785,7 @@ tests/test_trainer.py .....                                             [100%]
 MIT — free for learning and building.
 
 ---
+
+<p align="center">
+  <em>Part of the <a href="https://github.com/SAIR-Org/SAIR_Jr">SAIR Jr. ML Engineering Track</a> 🇸🇩</em>
+</p>

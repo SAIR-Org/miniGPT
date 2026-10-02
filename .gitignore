@@ -26,3 +26,6 @@ tea_debug.log
 # ── OS ────────────────────────────────────────
 .DS_Store
 Thumbs.dbdata/raw/
+
+# Model checkpoints (large binaries, re-downloadable)
+checkpoints/
